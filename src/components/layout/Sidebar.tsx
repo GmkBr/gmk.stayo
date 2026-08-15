@@ -1,18 +1,5 @@
-import { NavLink } from 'react-router-dom'
-import {
-  BarChart3,
-  BedDouble,
-  CalendarCheck,
-  LayoutDashboard,
-  MonitorSmartphone,
-  Settings,
-  Smartphone,
-  Sparkles,
-  UtensilsCrossed,
-  Users,
-  Wrench,
-  PanelLeft,
-} from 'lucide-react'
+import { Link, NavLink } from 'react-router-dom'
+import { CalendarCheck, ListChecks, PanelLeft } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { StayoLogo } from '../brand/StayoLogo.tsx'
 import { Avatar } from '../ui/Avatar.tsx'
@@ -22,65 +9,10 @@ import { useApp } from '../../context/AppContext.tsx'
 
 type Item = { to: string; label: string; icon: LucideIcon }
 
-const OVERVIEW: Item[] = [{ to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }]
-
-const OPERATION: Item[] = [
-  { to: '/reservations', label: 'Reservas', icon: CalendarCheck },
-  { to: '/guests', label: 'Hóspedes', icon: Users },
-  { to: '/rooms', label: 'Quartos', icon: BedDouble },
-  { to: '/housekeeping', label: 'Governança', icon: Sparkles },
-  { to: '/maintenance', label: 'Manutenção', icon: Wrench },
+const ITEMS: Item[] = [
+  { to: '/filas', label: 'Filas', icon: ListChecks },
+  { to: '/reservas', label: 'Reservas', icon: CalendarCheck },
 ]
-
-const EXPERIENCE: Item[] = [
-  { to: '/services', label: 'Serviços', icon: UtensilsCrossed },
-  { to: '/guest', label: 'Guest Portal', icon: Smartphone },
-  { to: '/self-service', label: 'Autoatendimento', icon: MonitorSmartphone },
-]
-
-const MANAGEMENT: Item[] = [
-  { to: '/reports', label: 'Relatórios', icon: BarChart3 },
-  { to: '/settings', label: 'Configurações', icon: Settings },
-]
-
-function NavSection({ title, items, collapsed }: { title: string; items: Item[]; collapsed: boolean }) {
-  return (
-    <div className="px-3">
-      {!collapsed && (
-        <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted/80">{title}</p>
-      )}
-      <ul className="flex flex-col gap-0.5">
-        {items.map((item) => {
-          const link = (
-            <NavLink
-              to={item.to}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors duration-150',
-                  collapsed && 'justify-center px-0',
-                  isActive ? 'bg-canvas text-ink' : 'text-muted hover:bg-canvas hover:text-ink',
-                )
-              }
-            >
-              <item.icon size={18} strokeWidth={1.75} />
-              {!collapsed && item.label}
-            </NavLink>
-          )
-
-          return (
-            <li key={item.to}>
-              {collapsed ? (
-                <Tooltip content={item.label}>{link}</Tooltip>
-              ) : (
-                link
-              )}
-            </li>
-          )
-        })}
-      </ul>
-    </div>
-  )
-}
 
 export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar, user, mobileNavOpen, setMobileNavOpen } = useApp()
@@ -94,7 +26,9 @@ export function Sidebar() {
       )}
     >
       <div className={cn('flex h-14 items-center justify-between px-4', collapsed && 'justify-center px-2')}>
-        <StayoLogo collapsed={collapsed} />
+        <Link to="/" aria-label="Trocar superfície">
+          <StayoLogo collapsed={collapsed} />
+        </Link>
         {!collapsed && (
           <button
             type="button"
@@ -111,10 +45,36 @@ export function Sidebar() {
       </div>
 
       <nav className="flex flex-1 flex-col gap-5 overflow-y-auto py-3 scrollbar-thin">
-        <NavSection title="Overview" items={OVERVIEW} collapsed={collapsed} />
-        <NavSection title="Operação" items={OPERATION} collapsed={collapsed} />
-        <NavSection title="Experiência" items={EXPERIENCE} collapsed={collapsed} />
-        <NavSection title="Gestão" items={MANAGEMENT} collapsed={collapsed} />
+        <div className="px-3">
+          {!collapsed && (
+            <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted/80">Console</p>
+          )}
+          <ul className="flex flex-col gap-0.5">
+            {ITEMS.map((item) => {
+              const link = (
+                <NavLink
+                  to={item.to}
+                  className={({ isActive }) =>
+                    cn(
+                      'flex items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors duration-150',
+                      collapsed && 'justify-center px-0',
+                      isActive ? 'bg-canvas text-ink' : 'text-muted hover:bg-canvas hover:text-ink',
+                    )
+                  }
+                >
+                  <item.icon size={18} strokeWidth={1.75} />
+                  {!collapsed && item.label}
+                </NavLink>
+              )
+
+              return (
+                <li key={item.to}>
+                  {collapsed ? <Tooltip content={item.label}>{link}</Tooltip> : link}
+                </li>
+              )
+            })}
+          </ul>
+        </div>
       </nav>
 
       <div className={cn('border-t border-line p-3', collapsed && 'flex flex-col items-center')}>
@@ -140,6 +100,11 @@ export function Sidebar() {
           >
             <PanelLeft size={16} />
           </button>
+        )}
+        {!collapsed && (
+          <Link to="/" className="mt-2 block px-1 text-[12px] text-muted hover:text-ink">
+            Trocar superfície
+          </Link>
         )}
       </div>
     </aside>

@@ -1,7 +1,7 @@
 import type { Activity } from '../../types/index.ts'
 
 export const mockActivities: Activity[] = [
-  { id: 'ac-1', hotelId: 'aurora', time: '09:42', title: 'Check-in realizado', detail: 'João Silva — Quarto 203', kind: 'checkin' },
+  { id: 'ac-1', hotelId: 'aurora', time: '09:42', title: 'Check-in no totem', detail: 'João Silva — Quarto 203', kind: 'checkin' },
   { id: 'ac-2', hotelId: 'aurora', time: '09:35', title: 'Quarto 102 marcado como limpo', kind: 'cleaning' },
   { id: 'ac-3', hotelId: 'aurora', time: '09:21', title: 'Nova solicitação', detail: 'Ar-condicionado — Quarto 305', kind: 'request' },
   { id: 'ac-4', hotelId: 'aurora', time: '08:58', title: 'Reserva confirmada', detail: 'Maria Oliveira', kind: 'reservation' },

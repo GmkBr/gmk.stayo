@@ -21,7 +21,7 @@ export const mockReservations: Reservation[] = [
     history: [
       { at: '2026-08-02 11:20', text: 'Reserva criada pelo site' },
       { at: '2026-08-02 11:21', text: 'Pagamento autorizado' },
-      { at: '2026-08-14 09:42', text: 'Check-in realizado na recepção' },
+      { at: '2026-08-14 09:42', text: 'Check-in no totem de recepção' },
     ],
   },
   {

@@ -23,7 +23,7 @@ export function SelfServicePage() {
         <p className="text-[12px] font-semibold uppercase tracking-[0.16em]" style={{ color: brand.primaryColor }}>
           {brand.hotelName}
         </p>
-        <Link to="/dashboard" className="text-[12px] text-muted">
+        <Link to="/" className="text-[12px] text-muted">
           Sair do totem
         </Link>
       </div>

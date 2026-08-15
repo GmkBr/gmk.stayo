@@ -191,6 +191,20 @@ export type Activity = {
   kind: ActivityKind
 }
 
+export type OrderStatus = 'open' | 'preparing' | 'delivered'
+export type OrderSource = 'room' | 'area'
+
+export type Order = {
+  id: string
+  hotelId: string
+  source: OrderSource
+  location: string
+  guestName: string
+  items: string
+  status: OrderStatus
+  time: string
+}
+
 export type AppNotification = {
   id: string
   hotelId: string

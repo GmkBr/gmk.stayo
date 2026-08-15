@@ -14,7 +14,6 @@ import { Avatar } from '../../components/ui/Avatar.tsx'
 import { ReservationStatusBadge } from '../../components/ui/StatusBadge.tsx'
 import { Drawer } from '../../components/ui/Drawer.tsx'
 import { TableSkeleton } from '../../components/ui/Skeleton.tsx'
-import { CheckInModal } from '../../components/checkin/CheckInModal.tsx'
 import { Modal } from '../../components/ui/Modal.tsx'
 import { Input } from '../../components/ui/Input.tsx'
 import { DatePicker } from '../../components/ui/DatePicker.tsx'
@@ -45,7 +44,6 @@ export function ReservationsPage() {
   const [status, setStatus] = useState('all')
   const [period, setPeriod] = useState('all')
   const [selected, setSelected] = useState<Reservation | null>(null)
-  const [checkIn, setCheckIn] = useState<Reservation | null>(null)
   const [creating, setCreating] = useState(false)
 
   const rows = useMemo(() => {
@@ -72,7 +70,7 @@ export function ReservationsPage() {
     <div className="mx-auto flex max-w-[1200px] flex-col gap-6">
       <PageHeader
         title="Reservas"
-        subtitle="Gerencie as reservas e acompanhe a chegada dos hóspedes."
+        subtitle="A lista que o totem de recepção consulta no check-in."
         actions={
           <Button onClick={() => setCreating(true)}>
             <Plus size={16} />
@@ -155,11 +153,6 @@ export function ReservationsPage() {
                   Confirmar
                 </Button>
               )}
-              {(selected.status === 'confirmed' || selected.status === 'arriving_today') && (
-                <Button size="sm" onClick={() => setCheckIn(selected)}>
-                  Check-in
-                </Button>
-              )}
               <Button size="sm" variant="secondary" onClick={() => push({ title: 'Edição simulada', detail: 'Os campos permanecem locais neste protótipo.' })}>
                 Editar
               </Button>
@@ -203,17 +196,6 @@ export function ReservationsPage() {
           </div>
         )}
       </Drawer>
-
-      <CheckInModal
-        open={Boolean(checkIn)}
-        reservation={checkIn}
-        onClose={() => setCheckIn(null)}
-        onComplete={() => {
-          if (!checkIn) return
-          setStatusOf(checkIn.id, 'checked_in', 'Check-in concluído')
-          addActivity({ time: 'agora', title: 'Check-in realizado', detail: `${checkIn.guestName} — Quarto ${checkIn.roomNumber}`, kind: 'checkin' })
-        }}
-      />
 
       <NewReservationModal
         open={creating}

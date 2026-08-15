@@ -10,17 +10,8 @@ import { IconButton } from '../ui/IconButton.tsx'
 import { GlobalSearch } from './GlobalSearch.tsx'
 
 const LABELS: Record<string, string> = {
-  dashboard: 'Dashboard',
-  reservations: 'Reservas',
-  guests: 'Hóspedes',
-  rooms: 'Quartos',
-  housekeeping: 'Governança',
-  maintenance: 'Manutenção',
-  services: 'Serviços',
-  guest: 'Guest Portal',
-  'self-service': 'Autoatendimento',
-  reports: 'Relatórios',
-  settings: 'Configurações',
+  filas: 'Filas',
+  reservas: 'Reservas',
 }
 
 export function Topbar() {
@@ -32,7 +23,7 @@ export function Topbar() {
 
   const crumbs = useMemo(() => {
     const parts = location.pathname.split('/').filter(Boolean)
-    if (parts.length === 0) return [{ label: 'Dashboard' }]
+    if (parts.length === 0) return [{ label: 'Filas' }]
     return parts.map((part, i) => ({
       label: LABELS[part] ?? decodeURIComponent(part),
       to: i < parts.length - 1 ? `/${parts.slice(0, i + 1).join('/')}` : undefined,
@@ -49,7 +40,7 @@ export function Topbar() {
       </IconButton>
 
       <div className="min-w-0 flex-1">
-        <Breadcrumb items={[{ label: 'STAYO', to: '/dashboard' }, ...crumbs]} />
+        <Breadcrumb items={[{ label: 'STAYO', to: '/' }, ...crumbs]} />
       </div>
 
       <button
@@ -133,7 +124,7 @@ export function Topbar() {
 
       <button
         type="button"
-        onClick={() => navigate('/settings')}
+        onClick={() => navigate('/')}
         className="flex items-center gap-2 rounded-lg py-1 pl-1 pr-1 hover:bg-canvas"
       >
         <Avatar name={user.name} size="sm" />
