@@ -35,8 +35,11 @@ const SURFACES = [
 export function HubPage() {
   return (
     <div className="flex min-h-svh flex-col bg-canvas">
-      <header className="flex h-14 items-center px-6">
+      <header className="flex h-14 items-center justify-between px-6">
         <StayoLogo />
+        <Link to="/docs" className="text-[13px] font-medium text-muted hover:text-ink">
+          Documentação
+        </Link>
       </header>
 
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-6 pb-16">

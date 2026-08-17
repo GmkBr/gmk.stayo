@@ -1,0 +1,16 @@
+---
+description: Atualizar docs/DOCUMENTACAO.md a cada mudança de produto, rota ou MVP
+alwaysApply: true
+---
+
+# Documentação viva
+
+`docs/DOCUMENTACAO.md` e `src/docs/content.ts` são a fonte de verdade. A tela `/docs` lê o `content.ts`.
+
+Leia `/docs` ou o markdown antes de implementar.
+
+Depois de qualquer mudança que altere produto, rotas, superfícies, escopo do MVP, mocks ou o que está fora do caminho, atualize `src/docs/content.ts` e `docs/DOCUMENTACAO.md` na mesma tarefa: data, estado atual, próximos passos e listas de rotas/legado.
+
+Não restaure páginas de gestão (dashboard PMS, governança, manutenção, guest portal, relatórios). O MVP é hub + console (filas, reservas) + totens (recepção, quarto, área).
+
+Não invente API. Estado é `AppContext` + mocks até o doc dizer o contrário.

@@ -1,5 +1,5 @@
 import { Link, NavLink } from 'react-router-dom'
-import { CalendarCheck, ListChecks, PanelLeft } from 'lucide-react'
+import { BookOpen, CalendarCheck, ListChecks, PanelLeft } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { StayoLogo } from '../brand/StayoLogo.tsx'
 import { Avatar } from '../ui/Avatar.tsx'
@@ -92,19 +92,35 @@ export function Sidebar() {
           </div>
         )}
         {collapsed && (
-          <button
-            type="button"
-            aria-label="Expandir menu"
-            onClick={toggleSidebar}
-            className="mt-3 hidden size-8 items-center justify-center rounded-lg text-muted hover:bg-canvas lg:flex"
-          >
-            <PanelLeft size={16} />
-          </button>
+          <>
+            <Tooltip content="Documentação">
+              <Link
+                to="/docs"
+                aria-label="Documentação"
+                className="mt-3 flex size-8 items-center justify-center rounded-lg text-muted hover:bg-canvas"
+              >
+                <BookOpen size={16} />
+              </Link>
+            </Tooltip>
+            <button
+              type="button"
+              aria-label="Expandir menu"
+              onClick={toggleSidebar}
+              className="mt-1 hidden size-8 items-center justify-center rounded-lg text-muted hover:bg-canvas lg:flex"
+            >
+              <PanelLeft size={16} />
+            </button>
+          </>
         )}
         {!collapsed && (
-          <Link to="/" className="mt-2 block px-1 text-[12px] text-muted hover:text-ink">
-            Trocar superfície
-          </Link>
+          <div className="mt-2 flex flex-col gap-1 px-1">
+            <Link to="/" className="text-[12px] text-muted hover:text-ink">
+              Trocar superfície
+            </Link>
+            <Link to="/docs" className="text-[12px] text-muted hover:text-ink">
+              Documentação
+            </Link>
+          </div>
         )}
       </div>
     </aside>

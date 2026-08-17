@@ -6,11 +6,13 @@ import { ReservationsPage } from '../pages/reservations/ReservationsPage.tsx'
 import { SelfServicePage } from '../pages/self-service/SelfServicePage.tsx'
 import { RoomTotemPage } from '../pages/totem/RoomTotemPage.tsx'
 import { AreaTotemPage } from '../pages/totem/AreaTotemPage.tsx'
+import { DocsPage } from '../pages/docs/DocsPage.tsx'
 
 export function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<HubPage />} />
+      <Route path="/docs" element={<DocsPage />} />
 
       <Route element={<AdminLayout />}>
         <Route path="/filas" element={<QueuesPage />} />
