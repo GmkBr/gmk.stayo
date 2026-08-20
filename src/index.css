@@ -100,4 +100,163 @@ textarea {
   .totem-success-mark {
     animation: none;
   }
+  .room-totem-toast {
+    animation: none;
+  }
+}
+
+.room-totem-toast {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--hotel-primary) 92%, #000);
+  color: #fff;
+  padding: 0.625rem 1rem;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--hotel-primary) 28%, transparent);
+  animation: room-toast-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes room-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.room-catalog-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--hotel-primary) 10%, white);
+  color: color-mix(in srgb, var(--hotel-primary) 88%, #000);
+  padding: 0.125rem 0.5rem;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Room menu — editorial catalog */
+.room-menu-chip:active {
+  transform: scale(0.98);
+  transition: transform 0.12s ease-out;
+}
+
+.room-totem-shortcut:active {
+  transform: scale(0.98);
+  transition: transform 0.12s ease-out;
+}
+
+.room-menu-tile {
+  box-shadow: 0 2px 12px rgb(17 24 39 / 0.06);
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+}
+
+.room-menu-tile:active {
+  transform: scale(0.98);
+}
+
+.room-menu-tile-badge {
+  display: inline-flex;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.88);
+  color: color-mix(in srgb, var(--hotel-primary) 90%, #000);
+  padding: 0.2rem 0.55rem;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.room-menu-divider {
+  height: 1px;
+  background: color-mix(in srgb, var(--hotel-primary) 10%, var(--color-line));
+}
+
+.room-menu-row:active {
+  opacity: 0.88;
+}
+
+.room-menu-add-btn {
+  display: flex;
+  width: 2.75rem;
+  height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1.5px solid color-mix(in srgb, var(--hotel-primary) 28%, transparent);
+  color: var(--hotel-primary);
+  font-size: 14px;
+  font-weight: 700;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.room-menu-add-btn[data-active] {
+  background: var(--hotel-primary);
+  border-color: var(--hotel-primary);
+  color: #fff;
+}
+
+.room-menu-add-pill {
+  display: flex;
+  min-width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  padding: 0 0.5rem;
+  border: 1.5px solid color-mix(in srgb, var(--hotel-primary) 28%, transparent);
+  color: var(--hotel-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.room-menu-add-pill[data-active] {
+  background: var(--hotel-primary);
+  border-color: var(--hotel-primary);
+  color: #fff;
+}
+
+.room-menu-tabs button:focus-visible {
+  outline: 2px solid var(--hotel-primary);
+  outline-offset: 2px;
+}
+
+.room-cart-panel--open .room-cart-sheet {
+  animation: room-cart-rise 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.room-cart-backdrop {
+  animation: room-cart-fade 0.28s ease-out both;
+}
+
+@keyframes room-cart-rise {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes room-cart-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .room-cart-panel--open .room-cart-sheet,
+  .room-cart-backdrop {
+    animation: none;
+  }
 }

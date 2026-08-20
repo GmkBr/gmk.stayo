@@ -6,6 +6,8 @@ import { ReservationsPage } from '../pages/reservations/ReservationsPage.tsx'
 import { SelfServicePage } from '../pages/self-service/SelfServicePage.tsx'
 import { RoomTotemPage } from '../pages/totem/RoomTotemPage.tsx'
 import { AreaTotemPage } from '../pages/totem/AreaTotemPage.tsx'
+import { TotemsPage } from '../pages/totems/TotemsPage.tsx'
+import { CatalogPage } from '../pages/catalog/CatalogPage.tsx'
 import { DocsPage } from '../pages/docs/DocsPage.tsx'
 
 export function AppRoutes() {
@@ -17,6 +19,8 @@ export function AppRoutes() {
       <Route element={<AdminLayout />}>
         <Route path="/filas" element={<QueuesPage />} />
         <Route path="/reservas" element={<ReservationsPage />} />
+        <Route path="/totens" element={<TotemsPage />} />
+        <Route path="/cardapio" element={<CatalogPage />} />
       </Route>
 
       <Route path="/totem/recepcao" element={<SelfServicePage />} />

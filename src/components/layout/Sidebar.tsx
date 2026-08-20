@@ -1,5 +1,5 @@
 import { Link, NavLink } from 'react-router-dom'
-import { BookOpen, CalendarCheck, ListChecks, PanelLeft } from 'lucide-react'
+import { BookOpen, CalendarCheck, ListChecks, PanelLeft, Tablet, UtensilsCrossed } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { StayoLogo } from '../brand/StayoLogo.tsx'
 import { Avatar } from '../ui/Avatar.tsx'
@@ -12,6 +12,8 @@ type Item = { to: string; label: string; icon: LucideIcon }
 const ITEMS: Item[] = [
   { to: '/filas', label: 'Filas', icon: ListChecks },
   { to: '/reservas', label: 'Reservas', icon: CalendarCheck },
+  { to: '/totens', label: 'Totens', icon: Tablet },
+  { to: '/cardapio', label: 'Cardápio', icon: UtensilsCrossed },
 ]
 
 export function Sidebar() {

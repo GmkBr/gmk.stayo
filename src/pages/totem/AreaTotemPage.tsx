@@ -1,35 +1,71 @@
-import { Link } from 'react-router-dom'
+import { mockHotels } from '../../data/mock/index.ts'
 import { useApp } from '../../context/AppContext.tsx'
-import { Button } from '../../components/ui/Button.tsx'
+import { useTotemSession } from '../../hooks/useTotemSession.ts'
+import { TotemSetup } from '../../components/totem/TotemSetup.tsx'
+import { CatalogFlow, toOrderLines } from '../../components/totem/CatalogFlow.tsx'
+import { categoriesForArea } from './totemOrder.ts'
+import type { CartLine } from './totemOrder.ts'
 
 export function AreaTotemPage() {
-  const { hotel } = useApp()
-  const brand = hotel.brand
+  const { totem, hotel, isBound, bind, unbind } = useTotemSession('area')
+  const { areas, catalogCategories, catalogItems, addOrder, addActivity } = useApp()
+
+  const fallbackBrand = mockHotels[0].brand
+
+  if (!isBound || !totem || !hotel) {
+    return (
+      <TotemSetup
+        brand={hotel?.brand ?? fallbackBrand}
+        kind="area"
+        onBind={(code) => {
+          const result = bind(code)
+          return result.ok ? { ok: true } : { ok: false, error: result.error }
+        }}
+      />
+    )
+  }
+
+  const boundTotem = totem
+  const boundHotel = hotel
+
+  const area = areas.find((item) => item.id === boundTotem.areaId)
+  const areaName = area?.name ?? boundTotem.name
+  const categories = categoriesForArea(
+    catalogCategories.filter((item) => item.hotelId === boundHotel.id),
+    boundTotem.areaId ?? '',
+  )
+  const items = catalogItems.filter((item) => item.hotelId === boundHotel.id)
+
+  function handleSubmit(lines: CartLine[], notes: string) {
+    const guestName = 'Hóspede na área'
+    const orderLines = toOrderLines(lines)
+    addOrder({
+      hotelId: boundHotel.id,
+      source: 'area',
+      location: areaName,
+      guestName,
+      lines: orderLines,
+      totemId: boundTotem.id,
+      notes: notes || undefined,
+    })
+    addActivity({
+      time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      title: 'Pedido na área',
+      detail: `${areaName}`,
+      kind: 'request',
+    })
+  }
 
   return (
-    <div
-      className="flex min-h-svh flex-col"
-      style={{ background: brand.secondaryColor, ['--hotel-primary' as string]: brand.primaryColor }}
-    >
-      <div className="flex items-center justify-between px-6 py-4">
-        <p className="text-[12px] font-semibold uppercase tracking-[0.16em]" style={{ color: brand.primaryColor }}>
-          {brand.hotelName}
-        </p>
-        <Link to="/" className="text-[12px] text-muted">
-          Sair do totem
-        </Link>
-      </div>
-
-      <div className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-6 pb-16">
-        <p className="text-[13px] font-medium text-muted">Restaurante</p>
-        <h1 className="mt-2 text-[34px] font-semibold leading-tight tracking-[-0.045em]">Faça seu pedido</h1>
-        <p className="mt-3 text-[15px] text-muted">
-          Áreas comuns (restaurante, spa, lobby) usam este totem. O cardápio entra quando formos construir os pedidos.
-        </p>
-        <Button className="mt-8 h-14 min-w-56 text-base" disabled>
-          Ver cardápio
-        </Button>
-      </div>
-    </div>
+    <CatalogFlow
+      brand={boundHotel.brand}
+      contextLabel={areaName}
+      greeting="Faça seu pedido"
+      subtitle={`Cardápio e serviços de ${areaName}. Informe seu quarto nas observações, se quiser. Pagamento na recepção.`}
+      categories={categories}
+      items={items}
+      onSubmit={handleSubmit}
+      onUnbind={unbind}
+    />
   )
 }

@@ -2,139 +2,193 @@
 
 Interface no app: `/docs`. O conteúdo da tela vive em `src/docs/content.ts`. Este arquivo é o espelho em markdown.
 
-Fonte de verdade do produto e do código. Atualize `src/docs/content.ts` e este arquivo sempre que mudar rota, superfície, escopo do MVP ou comportamento mockado.
+Documentação de **funcionalidades do produto** — o que cada tela faz, fluxos de uso e limitações da demo.
 
-Última atualização: 14 ago 2026
-
----
-
-## O que é
-
-STAYO é um protótipo frontend (Vite + React, sem backend) da comunicação entre totens de autoatendimento e as reservas do hotel.
-
-O hóspede faz check-in no totem de recepção. Depois pede coisas no totem do quarto ou das áreas comuns. O console só acompanha o que esses totens fizeram.
-
-Não é um PMS. Não gerimos ocupação, governança, manutenção, receita nem cadastro interno de hotel.
+Última atualização: 19 ago 2026
 
 ---
 
-## Como rodar
+## Produto
 
-```bash
-npm install
-npm run dev
-```
+STAYO é a camada de autoatendimento hoteleiro. Totens para o hóspede, console para a equipe.
 
-Abre em `http://localhost:5173`. A primeira tela é o hub (`/`).
+O hóspede faz check-in no totem de recepção, pede serviços nos totens de quarto e área, e paga no checkout da recepção. A equipe acompanha tudo pelo console — filas, reservas, totens e cardápio — sem substituir o PMS do hotel.
 
----
+**Não é PMS.** STAYO não gerencia ocupação, governança, manutenção, receita nem cadastro interno.
 
-## Superfícies
-
-Quatro telas. Totens não usam sidebar nem topbar do console.
-
-| Superfície | Rota | Papel |
-|---|---|---|
-| Hub | `/` | Escolher console ou totem |
-| Documentação | `/docs` | Produto, rotas, MVP e legado |
-| Console — filas | `/filas` | Check-ins do totem + pedidos |
-| Console — reservas | `/reservas` | Lista que o totem consulta |
-| Totem de recepção | `/totem/recepcao` | Check-in de autoatendimento |
-| Totem de quarto | `/totem/quarto` | Pedidos do quarto (placeholder) |
-| Totem de área | `/totem/area` | Pedidos em restaurante, spa, lobby (placeholder) |
-
-Redirecionamentos velhos, só para não quebrar link:
-
-- `/dashboard` → `/filas`
-- `/reservations` → `/reservas`
-- `/self-service` → `/totem/recepcao`
-- `/guest` → `/totem/quarto`
-
-Qualquer outra rota cai no hub.
+| Quem | Usa |
+|---|---|
+| Hóspede | Totens de recepção, quarto e área |
+| Recepção / equipe | Console — filas, reservas, totens, cardápio |
+| Administrador | Console — troca de hotel e gestão operacional |
 
 ---
 
-## MVP — ordem de trabalho
+## Funcionalidades
 
-1. **Agora (feito):** separar superfícies, limpar o console, tirar gestão interna do caminho.
-2. **Seguinte:** totem de recepção busca reserva de verdade (mock em `mockReservations`), confirma, muda status para `checked_in`. A fila em `/filas` atualiza na hora.
-3. **Depois:** totem de quarto com catálogo e pedido indo para a fila.
-4. **Por último:** totem de área, mesma lógica de pedido, contexto da área em vez do quarto.
+### Hub (`/`)
 
-Serviços / cardápio só entram no passo 3.
+Ponto de entrada. Escolhe entre console ou totem.
+
+- Lista as quatro superfícies do produto
+- Link para esta documentação
+
+### Console — Filas (`/filas`)
+
+Painel operacional do dia. O que chegou pelos totens.
+
+- Contadores: aguardando check-in, check-ins feitos, pedidos abertos
+- Fila de check-in: reservas aguardando o totem e as já concluídas
+- Fila de pedidos: abertos, em preparo, entregues ou cancelados
+- Avançar status do pedido ou cancelar
+- Clique em uma reserva leva para a lista completa
+
+### Console — Reservas (`/reservas`)
+
+Lista que o totem de recepção consulta no check-in.
+
+- Busca por nome ou quarto
+- Filtro por status (confirmada, hospedado, cancelada…)
+- Filtro por período (chegada hoje, próximas, em casa)
+- Ver detalhes: contato, datas, valor, pagamento, histórico
+- Confirmar reserva pendente ou cancelar
+- Criar nova reserva manualmente
+
+**Ainda não:** edição de campos é simulada — alterações ficam só nesta sessão.
+
+### Console — Totens (`/totens`)
+
+Cadastro de tablets de quarto e de área.
+
+- Listar totens por quarto ou área
+- Criar e editar: nome, código de ativação, vínculo, status
+- Copiar código para configurar o dispositivo
+
+### Console — Cardápio (`/cardapio`)
+
+O que os totens podem oferecer.
+
+- Categorias e itens (room service, restaurante, spa…)
+- Serviços extras no quarto (spa, transfer, late checkout…)
+- Áreas comuns (restaurante, spa, lobby)
+
+### Totem de recepção (`/totem/recepcao`)
+
+Check-in de autoatendimento.
+
+- Busca reserva por nome ou código
+- Valida status: bloqueia canceladas, pendentes, já feitas ou fora da data
+- Mostra dados da reserva e quarto atribuído
+- Simula leitura de documento
+- Apresenta termos do hotel e exige aceite
+- Confirma check-in e orienta caminho até o quarto
+- Modo operador para a recepção intervir
+- Reinicia sozinho após inatividade
+
+**Ainda não:** leitura de documento é simulada — sem hardware. Checkout e pagamento ainda não implementados.
+
+### Totem de quarto (`/totem/quarto`)
+
+Pedidos e solicitações no quarto. Tablet na parede ou mesa.
+
+- Ativação única por código cadastrado no console
+- Home com atalhos e destaques do cardápio (visual de catálogo)
+- Ícones, badges (~25 min / Imediato), toast ao adicionar item
+- Carrinho, observações e envio para a fila
+- Confirmação com previsão; valor na conta do quarto
+- Totem de área mantém layout kiosk
+
+**Códigos demo (Aurora):** `Q203-AUR` (quarto 203), `Q308-AUR` (quarto 308)
+
+### Totem de área (`/totem/area`)
+
+Pedidos em restaurante, spa, lobby.
+
+- Ativação única por código
+- Cardápio filtrado pela área cadastrada
+- Carrinho e envio para a fila
+- Pagamento na recepção
+
+**Códigos demo (Aurora):** `RST-AUR` (restaurante), `SPA-AUR` (spa)
+
+### Multi-hotel
+
+- Seletor de hotel no topbar do console
+- Troca reservas, filas, pedidos, totens e cardápio do hotel selecionado
+- Totens exibem cor, nome e termos do hotel vinculado ao cadastro
 
 ---
 
-## Estado atual do código
+## Fluxos
 
-### Funciona na demo
+### Check-in pelo hóspede (disponível)
 
-- Hub com as quatro superfícies.
-- Console com filas (check-in derivado das reservas + pedidos mock) e lista de reservas.
-- Totem de recepção: fluxo visual em etapas (início → busca → dados → docs → termos → fim).
-- Totens de quarto e área: tela de marca do hotel, botão desligado, texto de “próximo passo”.
-- Troca de hotel no topbar do console (muda marca e dados mock).
-- “Sair do totem” e logo STAYO voltam ao hub.
+1. Hóspede toca em "Fazer check-in" na tela inicial
+2. Digita nome ou código da reserva
+3. Sistema localiza e valida se pode fazer check-in
+4. Confere dados pessoais e quarto atribuído
+5. Passa pela leitura simulada do documento
+6. Aceita os termos do hotel
+7. Recebe confirmação com orientação até o quarto
+8. Reserva muda para "Hospedado" e aparece na fila do console
 
-### Ainda é falso / incompleto
+### Equipe acompanha chegadas (disponível)
 
-- Check-in da recepção **não consulta** a lista de reservas. Nome e quarto 203 estão fixos na tela.
-- Pedidos em `/filas` vêm de `src/data/mock/mockOrders.ts`. Nenhum totem cria pedido.
-- Check-in pelo console foi removido de propósito. Só o totem de recepção faz check-in.
-- Sem backend. Estado vive em `AppContext` + mocks.
+1. Abre Filas no console
+2. Vê quantos aguardam check-in e quantos já concluíram
+3. Lista mostra nome, quarto e status
+4. Clica em uma linha para abrir detalhes em Reservas
 
----
+### Equipe gerencia reservas (disponível)
 
-## Pastas que importam
+1. Abre Reservas no console
+2. Busca ou filtra a reserva
+3. Abre painel lateral com contato, datas e histórico
+4. Confirma, cancela ou cria nova reserva
 
-```
-src/
-  routes/index.tsx          rotas oficiais
-  context/AppContext.tsx    hotel atual, reservas, status
-  data/mock/                reservas, pedidos, hotéis
-  pages/hub/                escolha de superfície
-  pages/queues/             filas do console
-  pages/reservations/       lista de reservas
-  pages/self-service/       totem de recepção
-  pages/totem/              quarto e área
-  components/layout/        só o console (sidebar, topbar)
-  components/ui/            botões, tabela, drawer…
-  types/index.ts            Reservation, Order, Hotel…
-```
+### Configurar totem de quarto (disponível)
 
-Totem usa a marca do hotel (`hotel.brand`: cor, nome). Console usa a identidade STAYO (canvas, ink, accent azul `#2563EB`). Tipografia: Plus Jakarta Sans. Não usar roxo.
+1. Console → Totens → cadastra tablet com quarto e código
+2. No dispositivo, abre `/totem/quarto` e informa o código
+3. Ativação fica salva no navegador — não repete
+4. Cardápio vem de Console → Cardápio
 
----
+### Pedido pelo quarto (disponível)
 
-## Fora do produto (não religar)
+1. Hóspede abre o totem no quarto
+2. Navega pelo catálogo e monta o pedido
+3. Confirma — pedido entra na fila do console
+4. Equipe avança status (preparo → entregue) ou cancela
+5. Pagamento fica para o checkout na recepção
 
-Estas páginas existem no disco, **sem rota**. São resto do protótipo antigo de gestão. Não coloque de volta no sidebar nem nas rotas do MVP:
+### Pedido na área comum (disponível)
 
-- `pages/dashboard` — ocupação, receita, mosaico de quartos
-- `pages/guests` — CRM de hóspedes
-- `pages/rooms` — mapa operacional
-- `pages/housekeeping` — governança
-- `pages/maintenance` — chamados
-- `pages/services` — catálogo admin (o cardápio do totem é outra coisa)
-- `pages/reports`
-- `pages/settings`
-- `pages/guest-portal` — app no celular. No MVP isso vira totem de quarto, não portal móvel
-- `components/checkin/CheckInModal` — check-in interno do painel
-
-Se precisar de um componente visual, copie a peça. Não restaure a tela inteira.
+1. Hóspede acessa totem da área (restaurante, spa…)
+2. Consulta cardápio da área
+3. Faz o pedido com observações
+4. Pedido entra na fila do console
+5. Pagamento na recepção
 
 ---
 
-## Regras de produto
+## Próximos passos
 
-- Totem não tem “voltar ao dashboard”. Sai para o hub.
-- Console não lista totens no menu. Troca de superfície é pelo hub (logo ou “Trocar superfície”).
-- Check-in = totem de recepção. Pedido = totem de quarto ou área.
-- Guest Portal não é uma superfície. Não recrie `/guest`.
-- Dados mockados podem mudar no cliente. Não invente API ainda.
+1. **Checkout na recepção** — fechar conta e pagamento no totem de recepção com itens dos pedidos
+2. **Integração com PMS** — reservas vindas do sistema do hotel
 
 ---
 
-## Histórico curto
+## Limitações da demo
 
-O projeto começou como painel operacional completo (recepção, governança, manutenção, relatórios, guest portal). Em 14 ago 2026 o recorte mudou: STAYO não é sistema de gestão. O MVP é totem de recepção + reservas, depois totens de quarto e área para pedidos. O console ficou só com filas e reservas.
+- Protótipo frontend — sem servidor. Dados resetam ao recarregar.
+- Ativação do totem persiste no navegador; cadastros e pedidos resetam ao recarregar.
+- Pagamento ainda não existe no totem de recepção.
+- Leitura de documento no check-in é simulada.
+- Edição de reserva no console é simulada.
+- Não substitui PMS: sem governança, manutenção, relatórios nem gestão interna.
+
+---
+
+## Materiais extras
+
+- **`docs/stayo-pitch-custos.html`** — apresentação de custos de hardware e hospedagem para investidor. Abrir no navegador; navegação por setas.

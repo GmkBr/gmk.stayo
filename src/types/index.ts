@@ -191,8 +191,15 @@ export type Activity = {
   kind: ActivityKind
 }
 
-export type OrderStatus = 'open' | 'preparing' | 'delivered'
+export type OrderStatus = 'open' | 'preparing' | 'delivered' | 'cancelled'
 export type OrderSource = 'room' | 'area'
+
+export type OrderLine = {
+  id: string
+  name: string
+  qty: number
+  price: number
+}
 
 export type Order = {
   id: string
@@ -201,8 +208,53 @@ export type Order = {
   location: string
   guestName: string
   items: string
+  lines: OrderLine[]
+  total: number
   status: OrderStatus
   time: string
+  totemId?: string
+  notes?: string
+}
+
+export type TotemKind = 'room' | 'area'
+
+export type Totem = {
+  id: string
+  hotelId: string
+  code: string
+  name: string
+  kind: TotemKind
+  roomNumber?: string
+  areaId?: string
+  active: boolean
+}
+
+export type HotelArea = {
+  id: string
+  hotelId: string
+  name: string
+  active: boolean
+}
+
+export type CatalogContext = 'room' | 'area' | 'both'
+
+export type CatalogCategory = {
+  id: string
+  hotelId: string
+  name: string
+  context: CatalogContext
+  areaIds?: string[]
+  sortOrder: number
+}
+
+export type CatalogItem = {
+  id: string
+  hotelId: string
+  categoryId: string
+  name: string
+  description: string
+  price: number
+  available: boolean
 }
 
 export type AppNotification = {

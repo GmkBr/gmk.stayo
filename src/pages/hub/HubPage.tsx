@@ -21,14 +21,12 @@ const SURFACES = [
     title: 'Totem de quarto',
     description: 'Pedidos e solicitações no quarto.',
     icon: Tablet,
-    soon: true,
   },
   {
     to: '/totem/area',
     title: 'Totem de área',
     description: 'Pedidos no restaurante, spa e áreas comuns.',
     icon: UtensilsCrossed,
-    soon: true,
   },
 ] as const
 
