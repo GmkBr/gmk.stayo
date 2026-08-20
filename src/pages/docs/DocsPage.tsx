@@ -4,31 +4,21 @@ import { StayoLogo } from '../../components/brand/StayoLogo.tsx'
 import { Badge } from '../../components/ui/Badge.tsx'
 import { cn } from '../../utils/cn.ts'
 import {
-  CODE_FILES,
   DOC_UPDATED,
-  INCOMPLETE,
-  LEGACY,
-  MVP_STEPS,
-  REDIRECTS,
-  RULES,
+  FEATURES,
+  FLOWS,
+  LIMITATIONS,
+  PRODUCT_SUMMARY,
   SECTIONS,
-  SURFACES,
-  WORKS,
+  UPCOMING,
+  type FeatureStatus,
   type SectionId,
-  type StepStatus,
-  type SurfaceStatus,
 } from '../../docs/content.ts'
 
-const SURFACE_BADGE: Record<SurfaceStatus, { label: string; tone: 'green' | 'amber' | 'neutral' }> = {
-  live: { label: 'No ar', tone: 'green' },
-  partial: { label: 'Visual', tone: 'amber' },
-  next: { label: 'Próximo', tone: 'neutral' },
-}
-
-const STEP_META: Record<StepStatus, { label: string; tone: 'green' | 'blue' | 'neutral' }> = {
-  done: { label: 'Feito', tone: 'green' },
-  now: { label: 'Agora', tone: 'blue' },
-  later: { label: 'Depois', tone: 'neutral' },
+const FEATURE_BADGE: Record<FeatureStatus, { label: string; tone: 'green' | 'amber' | 'neutral' }> = {
+  live: { label: 'Disponível', tone: 'green' },
+  partial: { label: 'Parcial', tone: 'amber' },
+  next: { label: 'Em breve', tone: 'neutral' },
 }
 
 function sectionFromHash(hash: string): SectionId {
@@ -94,123 +84,126 @@ function SectionBody({ id }: { id: SectionId }) {
   switch (id) {
     case 'produto':
       return (
-        <Block
-          title="O que é o STAYO"
-          lead="Protótipo frontend da comunicação entre totens de autoatendimento e as reservas do hotel. Sem backend."
-        >
-          <p className="max-w-xl text-[15px] leading-relaxed text-muted">
-            O hóspede faz check-in no totem de recepção. Depois pede no totem do quarto ou das áreas comuns. O console
-            só acompanha o que esses totens fizeram.
-          </p>
-          <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-muted">
-            Não é um PMS. Não gerimos ocupação, governança, manutenção, receita nem cadastro interno de hotel.
-          </p>
-          <div className="mt-8 grid gap-3 sm:grid-cols-3">
-            <Fact label="Stack" value="Vite + React" />
-            <Fact label="Estado" value="AppContext + mocks" />
-            <Fact label="Entrada" value="localhost:5173" />
+        <Block title={PRODUCT_SUMMARY.title} lead={PRODUCT_SUMMARY.lead}>
+          <p className="max-w-xl text-[15px] leading-relaxed text-muted">{PRODUCT_SUMMARY.description}</p>
+          <div className="mt-6 rounded-xl border border-line bg-surface px-4 py-3 text-[14px] leading-relaxed text-muted">
+            {PRODUCT_SUMMARY.notPms}
           </div>
-        </Block>
-      )
-    case 'superficies':
-      return (
-        <Block title="Superfícies" lead="Totens não usam sidebar nem topbar do console. Troca de tela passa pelo hub.">
-          <ul className="grid gap-3 sm:grid-cols-2">
-            {SURFACES.map((item) => {
-              const badge = SURFACE_BADGE[item.status]
-              return (
-                <li key={item.path}>
-                  <Link
-                    to={item.path}
-                    className="flex h-full flex-col rounded-xl border border-line bg-surface p-4 shadow-soft transition-colors hover:border-ink/20"
-                  >
-                    <span className="flex items-start justify-between gap-2">
-                      <span className="text-[15px] font-semibold tracking-[-0.02em]">{item.title}</span>
-                      <Badge tone={badge.tone}>{badge.label}</Badge>
-                    </span>
-                    <span className="mt-1 font-mono text-[12px] text-muted">{item.path}</span>
-                    <span className="mt-2 text-[13px] leading-relaxed text-muted">{item.role}</span>
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-          <h3 className="mt-10 text-sm font-semibold">Redirecionamentos velhos</h3>
-          <ul className="mt-3 divide-y divide-line rounded-xl border border-line bg-surface">
-            {REDIRECTS.map((item) => (
-              <li key={item.from} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[13px]">
-                <span className="font-mono text-muted">{item.from}</span>
-                <span className="font-mono">{item.to}</span>
+          <h3 className="mt-10 text-[13px] font-semibold uppercase tracking-[0.06em] text-muted">Quem usa o quê</h3>
+          <ul className="mt-3 flex flex-col gap-2">
+            {PRODUCT_SUMMARY.users.map((item) => (
+              <li
+                key={item.role}
+                className="flex flex-col gap-0.5 rounded-xl border border-line bg-surface px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <span className="text-[14px] font-semibold">{item.role}</span>
+                <span className="text-[13px] text-muted">{item.uses}</span>
               </li>
             ))}
           </ul>
         </Block>
       )
-    case 'mvp':
+
+    case 'funcionalidades':
       return (
-        <Block title="Ordem do MVP" lead="Serviços e cardápio só entram no totem de quarto.">
-          <ol className="flex flex-col gap-3">
-            {MVP_STEPS.map((step, index) => {
-              const meta = STEP_META[step.status]
+        <Block
+          title="Funcionalidades"
+          lead="O que cada parte do STAYO faz hoje. Clique no nome para abrir a tela."
+        >
+          <ul className="flex flex-col gap-4">
+            {FEATURES.map((feature) => {
+              const badge = FEATURE_BADGE[feature.status]
               return (
-                <li
-                  key={step.title}
-                  className={cn(
-                    'rounded-xl border bg-surface p-4 shadow-soft',
-                    step.status === 'now' ? 'border-accent' : 'border-line',
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-[13px] font-medium text-muted">{String(index + 1).padStart(2, '0')}</p>
-                    <Badge tone={meta.tone}>{meta.label}</Badge>
+                <li key={feature.title} className="rounded-xl border border-line bg-surface p-5 shadow-soft">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      {feature.path ? (
+                        <Link to={feature.path} className="text-[17px] font-semibold tracking-[-0.03em] hover:text-accent">
+                          {feature.title}
+                        </Link>
+                      ) : (
+                        <p className="text-[17px] font-semibold tracking-[-0.03em]">{feature.title}</p>
+                      )}
+                      {feature.path && (
+                        <p className="mt-0.5 font-mono text-[12px] text-muted">{feature.path}</p>
+                      )}
+                    </div>
+                    <Badge tone={badge.tone}>{badge.label}</Badge>
                   </div>
-                  <p className="mt-2 text-[16px] font-semibold tracking-[-0.03em]">{step.title}</p>
-                  <p className="mt-1 text-[13px] leading-relaxed text-muted">{step.detail}</p>
+                  <p className="mt-3 text-[14px] leading-relaxed text-muted">{feature.summary}</p>
+                  <CapList title="O que faz" items={feature.capabilities} />
+                  {feature.limitations && feature.limitations.length > 0 && (
+                    <CapList title="Ainda não" items={feature.limitations} muted />
+                  )}
                 </li>
               )
             })}
-          </ol>
+          </ul>
         </Block>
       )
-    case 'estado':
+
+    case 'fluxos':
       return (
-        <Block title="Estado do código" lead="O que a demo mostra hoje, e o que ainda é falso.">
-          <div className="grid gap-4 lg:grid-cols-2">
-            <ListCard title="Funciona" tone="green" items={WORKS} />
-            <ListCard title="Incompleto" tone="amber" items={INCOMPLETE} />
-          </div>
-        </Block>
-      )
-    case 'codigo':
-      return (
-        <Block title="Pastas que importam" lead="Onde mexer. Totem usa a marca do hotel. Console usa a identidade STAYO.">
-          <ul className="overflow-hidden rounded-xl border border-line bg-surface">
-            {CODE_FILES.map((item) => (
-              <FileRow key={item.path} path={item.path} role={item.role} />
+        <Block title="Fluxos" lead="Passo a passo de uso — do ponto de vista de quem opera o produto.">
+          <ul className="flex flex-col gap-4">
+            {FLOWS.map((flow) => (
+              <li
+                key={flow.title}
+                className={cn(
+                  'rounded-xl border bg-surface p-5 shadow-soft',
+                  flow.status === 'live' ? 'border-line' : 'border-dashed border-line',
+                )}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-[17px] font-semibold tracking-[-0.03em]">{flow.title}</p>
+                    <p className="mt-0.5 text-[13px] text-muted">{flow.actor}</p>
+                  </div>
+                  <Badge tone={flow.status === 'live' ? 'green' : 'neutral'}>
+                    {flow.status === 'live' ? 'Disponível' : 'Em breve'}
+                  </Badge>
+                </div>
+                <ol className="mt-4 flex flex-col gap-2.5">
+                  {flow.steps.map((step, i) => (
+                    <li key={step} className="flex gap-3 text-[14px] leading-relaxed">
+                      <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-canvas text-[12px] font-semibold text-muted">
+                        {i + 1}
+                      </span>
+                      <span className="pt-0.5">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </li>
             ))}
           </ul>
         </Block>
       )
-    case 'legado':
+
+    case 'proximos':
+      return (
+        <Block title="Próximos passos" lead="O que vem depois do que já está disponível na demo.">
+          <ul className="flex flex-col gap-3">
+            {UPCOMING.map((item, i) => (
+              <li key={item.title} className="rounded-xl border border-line bg-surface p-4 shadow-soft">
+                <p className="text-[13px] font-medium text-muted">{String(i + 1).padStart(2, '0')}</p>
+                <p className="mt-1 text-[16px] font-semibold tracking-[-0.03em]">{item.title}</p>
+                <p className="mt-1 text-[14px] leading-relaxed text-muted">{item.detail}</p>
+              </li>
+            ))}
+          </ul>
+        </Block>
+      )
+
+    case 'limitacoes':
       return (
         <Block
-          title="Fora do produto"
-          lead="Arquivos ainda no disco, sem rota. Não volte para o sidebar. Se precisar de um componente, copie a peça."
+          title="Limitações da demo"
+          lead="O que ainda não é produção. Importante saber antes de apresentar ou testar com cliente."
         >
-          <ul className="overflow-hidden rounded-xl border border-line bg-surface">
-            {LEGACY.map((item) => (
-              <FileRow key={item.path} path={item.path} role={item.role} />
-            ))}
-          </ul>
-        </Block>
-      )
-    case 'regras':
-      return (
-        <Block title="Regras de produto" lead="Vale para qualquer tela nova.">
           <ul className="flex flex-col gap-2">
-            {RULES.map((rule) => (
-              <li key={rule} className="rounded-xl border border-line bg-surface px-4 py-3 text-[14px] leading-relaxed">
-                {rule}
+            {LIMITATIONS.map((item) => (
+              <li key={item} className="rounded-xl border border-line bg-surface px-4 py-3 text-[14px] leading-relaxed">
+                {item}
               </li>
             ))}
           </ul>
@@ -229,37 +222,18 @@ function Block({ title, lead, children }: { title: string; lead: string; childre
   )
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
+function CapList({ title, items, muted }: { title: string; items: string[]; muted?: boolean }) {
   return (
-    <div className="rounded-xl border border-line bg-surface px-4 py-3 shadow-soft">
-      <p className="text-[12px] text-muted">{label}</p>
-      <p className="mt-0.5 text-[13px] font-semibold">{value}</p>
-    </div>
-  )
-}
-
-function ListCard({ title, tone, items }: { title: string; tone: 'green' | 'amber'; items: string[] }) {
-  return (
-    <section className="rounded-xl border border-line bg-surface p-4 shadow-soft">
-      <div className="mb-3">
-        <Badge tone={tone}>{title}</Badge>
-      </div>
-      <ul className="flex flex-col gap-2.5">
+    <div className={cn('mt-4', muted && 'opacity-80')}>
+      <p className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted">{title}</p>
+      <ul className="mt-2 flex flex-col gap-1.5">
         {items.map((item) => (
-          <li key={item} className="text-[13px] leading-relaxed text-ink">
+          <li key={item} className="flex gap-2 text-[13px] leading-relaxed">
+            <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />
             {item}
           </li>
         ))}
       </ul>
-    </section>
-  )
-}
-
-function FileRow({ path, role }: { path: string; role: string }) {
-  return (
-    <li className="flex flex-col gap-0.5 border-b border-line px-4 py-3 last:border-0 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-      <span className="font-mono text-[12px]">{path}</span>
-      <span className="text-[13px] text-muted sm:text-right">{role}</span>
-    </li>
+    </div>
   )
 }

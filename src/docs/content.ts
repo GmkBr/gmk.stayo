@@ -1,125 +1,253 @@
-export type SurfaceStatus = 'live' | 'partial' | 'next'
-export type StepStatus = 'done' | 'now' | 'later'
+export type FeatureStatus = 'live' | 'partial' | 'next'
 
-export type DocSurface = {
+export type DocFeature = {
   title: string
-  path: string
-  role: string
-  status: SurfaceStatus
+  path?: string
+  status: FeatureStatus
+  summary: string
+  capabilities: string[]
+  limitations?: string[]
 }
 
-export type DocRedirect = { from: string; to: string }
+export type DocFlow = {
+  title: string
+  actor: string
+  status: 'live' | 'next'
+  steps: string[]
+}
 
-export type DocStep = {
+export type DocUpcoming = {
   title: string
   detail: string
-  status: StepStatus
 }
 
-export type DocFile = { path: string; role: string }
+export const DOC_UPDATED = '19 ago 2026'
 
-export const DOC_UPDATED = '14 ago 2026'
+export const PRODUCT_SUMMARY = {
+  title: 'STAYO',
+  lead: 'Camada de autoatendimento hoteleiro. Totens para o hóspede, console para a equipe.',
+  description:
+    'O hóspede faz check-in no totem de recepção e, no futuro, pede serviços nos totens de quarto e área. A equipe acompanha tudo pelo console — filas e reservas — sem substituir o PMS do hotel.',
+  notPms: 'STAYO não gerencia ocupação, governança, manutenção, receita nem cadastro interno. É a ponte entre o hóspede e a operação.',
+  users: [
+    { role: 'Hóspede', uses: 'Totens de recepção, quarto e área' },
+    { role: 'Recepção / equipe', uses: 'Console — filas e reservas' },
+    { role: 'Administrador', uses: 'Console — troca de hotel e gestão de reservas' },
+  ],
+}
 
-export const SURFACES: DocSurface[] = [
-  { title: 'Hub', path: '/', role: 'Escolher console ou totem', status: 'live' },
-  { title: 'Console — filas', path: '/filas', role: 'Check-ins do totem e pedidos', status: 'live' },
-  { title: 'Console — reservas', path: '/reservas', role: 'Lista que o totem consulta', status: 'live' },
-  { title: 'Totem de recepção', path: '/totem/recepcao', role: 'Check-in de autoatendimento', status: 'partial' },
-  { title: 'Totem de quarto', path: '/totem/quarto', role: 'Pedidos e solicitações no quarto', status: 'next' },
-  { title: 'Totem de área', path: '/totem/area', role: 'Pedidos no restaurante, spa e lobby', status: 'next' },
-]
-
-export const REDIRECTS: DocRedirect[] = [
-  { from: '/dashboard', to: '/filas' },
-  { from: '/reservations', to: '/reservas' },
-  { from: '/self-service', to: '/totem/recepcao' },
-  { from: '/guest', to: '/totem/quarto' },
-]
-
-export const MVP_STEPS: DocStep[] = [
+export const FEATURES: DocFeature[] = [
   {
-    title: 'Separar superfícies',
-    detail: 'Hub, console enxuto e totens fora do painel. Gestão interna fora do caminho.',
-    status: 'done',
+    title: 'Hub',
+    path: '/',
+    status: 'live',
+    summary: 'Ponto de entrada. Escolhe entre console ou totem.',
+    capabilities: [
+      'Lista as quatro superfícies do produto',
+      'Indica quais totens ainda estão em construção',
+      'Link para esta documentação',
+    ],
   },
   {
-    title: 'Check-in ligado às reservas',
-    detail: 'O totem busca a reserva mock, confirma e marca checked_in. A fila atualiza na hora.',
-    status: 'now',
+    title: 'Console — Filas',
+    path: '/filas',
+    status: 'live',
+    summary: 'Painel operacional do dia. O que chegou pelos totens.',
+    capabilities: [
+      'Contadores: aguardando check-in, check-ins feitos, pedidos abertos',
+      'Fila de check-in: reservas aguardando o totem e as já concluídas',
+      'Fila de pedidos: itens abertos, em preparo, entregues ou cancelados',
+      'Avançar status do pedido (aberto → preparo → entregue) ou cancelar',
+      'Clique em uma reserva leva para a lista completa',
+    ],
+  },
+  {
+    title: 'Console — Reservas',
+    path: '/reservas',
+    status: 'live',
+    summary: 'Lista de reservas que o totem de recepção consulta no check-in.',
+    capabilities: [
+      'Busca por nome ou quarto',
+      'Filtro por status (confirmada, hospedado, cancelada…)',
+      'Filtro por período (chegada hoje, próximas, em casa)',
+      'Ver detalhes: contato, datas, valor, pagamento, histórico',
+      'Confirmar reserva pendente ou cancelar',
+      'Criar nova reserva manualmente',
+    ],
+    limitations: ['Edição de campos é simulada — alterações ficam só nesta sessão'],
+  },
+  {
+    title: 'Totem de recepção',
+    path: '/totem/recepcao',
+    status: 'live',
+    summary: 'Check-in de autoatendimento. O hóspede resolve sozinho na chegada.',
+    capabilities: [
+      'Busca reserva por nome ou código',
+      'Valida status: bloqueia canceladas, pendentes, já feitas ou fora da data',
+      'Mostra dados da reserva e quarto atribuído',
+      'Simula leitura de documento',
+      'Apresenta termos do hotel e exige aceite',
+      'Confirma check-in e orienta caminho até o quarto',
+      'Modo operador para a recepção intervir',
+      'Reinicia sozinho após inatividade',
+    ],
+    limitations: ['Leitura de documento é simulada — sem integração com hardware'],
   },
   {
     title: 'Totem de quarto',
-    detail: 'Catálogo e pedido saindo do quarto para a fila do console.',
-    status: 'later',
+    path: '/totem/quarto',
+    status: 'live',
+    summary: 'Pedidos e solicitações dentro do quarto. Tablet na parede ou mesa.',
+    capabilities: [
+      'Ativação única por código cadastrado no console',
+      'Identificação fixa por quarto após ativação',
+      'Home com atalhos (Alimentos, Meus pedidos, Spa, Cardápio) e destaques',
+      'Catálogo visual: ícones, badges de tempo, feedback ao adicionar',
+      'Carrinho, observações e envio para a fila do console',
+      'Confirmação com previsão de entrega; cobrança na conta do quarto',
+      'Reinício após inatividade (3 min no catálogo)',
+    ],
   },
   {
     title: 'Totem de área',
-    detail: 'Mesma lógica de pedido, com o contexto da área em vez do quarto.',
-    status: 'later',
+    path: '/totem/area',
+    status: 'live',
+    summary: 'Pedidos em restaurante, spa, lobby. Pode ser totem grande ou tablet.',
+    capabilities: [
+      'Ativação única por código cadastrado no console',
+      'Vinculado à área definida no cadastro (restaurante, spa…)',
+      'Cardápio filtrado por área',
+      'Carrinho e envio para a fila do console',
+      'Cobrança orientada para o checkout na recepção',
+    ],
+  },
+  {
+    title: 'Console — Totens',
+    path: '/totens',
+    status: 'live',
+    summary: 'Cadastro de tablets de quarto e de área com código de ativação.',
+    capabilities: [
+      'Listar totens de quarto e de área do hotel',
+      'Criar e editar: nome, código, quarto ou área, status ativo',
+      'Copiar código para configurar o dispositivo',
+    ],
+  },
+  {
+    title: 'Console — Cardápio',
+    path: '/cardapio',
+    status: 'live',
+    summary: 'Itens e serviços que os totens de quarto e área podem oferecer.',
+    capabilities: [
+      'Categorias e itens do cardápio (quarto, área ou ambos)',
+      'Ativar ou desativar serviços extras no quarto',
+      'Cadastrar áreas comuns (restaurante, spa, lobby)',
+    ],
+  },
+  {
+    title: 'Multi-hotel',
+    status: 'live',
+    summary: 'Cada hotel com identidade própria nos totens.',
+    capabilities: [
+      'Seletor de hotel no topbar do console',
+      'Troca reservas, filas e pedidos do hotel selecionado',
+      'Totens exibem cor, nome e termos do hotel',
+    ],
   },
 ]
 
-export const WORKS: string[] = [
-  'Hub com as quatro superfícies',
-  'Console com filas e lista de reservas',
-  'Totem de recepção com o fluxo visual em etapas',
-  'Totens de quarto e área como placeholder da marca do hotel',
-  'Troca de hotel no console (muda marca e mocks)',
-  'Sair do totem e o logo STAYO voltam ao hub',
+export const FLOWS: DocFlow[] = [
+  {
+    title: 'Check-in pelo hóspede',
+    actor: 'Hóspede no totem de recepção',
+    status: 'live',
+    steps: [
+      'Hóspede toca em "Fazer check-in" na tela inicial',
+      'Digita nome ou código da reserva',
+      'Sistema localiza a reserva e valida se pode fazer check-in',
+      'Confere dados pessoais e quarto atribuído',
+      'Passa pela leitura simulada do documento',
+      'Aceita os termos do hotel',
+      'Recebe confirmação com orientação até o quarto',
+      'Reserva muda para "Hospedado" e aparece na fila do console',
+    ],
+  },
+  {
+    title: 'Equipe acompanha chegadas',
+    actor: 'Recepção no console',
+    status: 'live',
+    steps: [
+      'Abre Filas no console',
+      'Vê quantos hóspedes aguardam check-in e quantos já concluíram',
+      'Lista mostra nome, quarto e status de cada reserva',
+      'Clica em uma linha para abrir os detalhes em Reservas',
+    ],
+  },
+  {
+    title: 'Equipe gerencia reservas',
+    actor: 'Recepção no console',
+    status: 'live',
+    steps: [
+      'Abre Reservas no console',
+      'Busca ou filtra a reserva desejada',
+      'Abre o painel lateral com contato, datas e histórico',
+      'Confirma reserva pendente, cancela ou cria uma nova',
+    ],
+  },
+  {
+    title: 'Pedido pelo quarto',
+    actor: 'Hóspede no totem de quarto',
+    status: 'live',
+    steps: [
+      'Equipe cadastra o totem no console e copia o código',
+      'No tablet, informa o código uma única vez (fica fixo por quarto)',
+      'Hóspede abre o totem e vê saudação com o nome',
+      'Navega pelo catálogo, monta o pedido e confirma',
+      'Pedido aparece na fila do console em tempo real',
+      'Equipe prepara, atualiza status ou cancela',
+      'Pagamento fica para o checkout na recepção',
+    ],
+  },
+  {
+    title: 'Pedido na área comum',
+    actor: 'Hóspede no totem de área',
+    status: 'live',
+    steps: [
+      'Equipe cadastra totem de área no console (restaurante, spa…)',
+      'Tablet ativado com código único',
+      'Hóspede consulta cardápio da área',
+      'Faz o pedido com observações (ex.: número do quarto)',
+      'Pedido entra na fila do console',
+      'Pagamento na recepção, no checkout',
+    ],
+  },
 ]
 
-export const INCOMPLETE: string[] = [
-  'Check-in da recepção não consulta a lista. João e quarto 203 estão fixos',
-  'Pedidos da fila vêm de mockOrders. Nenhum totem cria pedido',
-  'Check-in pelo console foi removido de propósito',
-  'Sem backend. Estado vive no AppContext e nos mocks',
+export const UPCOMING: DocUpcoming[] = [
+  {
+    title: 'Checkout na recepção',
+    detail: 'Fechar conta e pagamento no totem de recepção com itens dos pedidos de quarto e área.',
+  },
+  {
+    title: 'Integração com PMS',
+    detail: 'Reservas e status vindos do sistema que o hotel já usa, em vez de dados locais.',
+  },
 ]
 
-export const CODE_FILES: DocFile[] = [
-  { path: 'src/routes/index.tsx', role: 'Rotas oficiais' },
-  { path: 'src/docs/content.ts', role: 'Conteúdo desta documentação' },
-  { path: 'src/context/AppContext.tsx', role: 'Hotel atual, reservas, status' },
-  { path: 'src/data/mock/', role: 'Reservas, pedidos, hotéis' },
-  { path: 'src/pages/docs/', role: 'Interface da documentação' },
-  { path: 'src/pages/hub/', role: 'Escolha de superfície' },
-  { path: 'src/pages/queues/', role: 'Filas do console' },
-  { path: 'src/pages/reservations/', role: 'Lista de reservas' },
-  { path: 'src/pages/self-service/', role: 'Totem de recepção' },
-  { path: 'src/pages/totem/', role: 'Quarto e área' },
-  { path: 'src/components/layout/', role: 'Sidebar e topbar do console' },
-  { path: 'src/types/index.ts', role: 'Reservation, Order, Hotel' },
-]
-
-export const LEGACY: DocFile[] = [
-  { path: 'pages/dashboard', role: 'Ocupação, receita, mosaico de quartos' },
-  { path: 'pages/guests', role: 'CRM de hóspedes' },
-  { path: 'pages/rooms', role: 'Mapa operacional' },
-  { path: 'pages/housekeeping', role: 'Governança' },
-  { path: 'pages/maintenance', role: 'Chamados' },
-  { path: 'pages/services', role: 'Catálogo admin — não é o cardápio do totem' },
-  { path: 'pages/reports', role: 'Relatórios' },
-  { path: 'pages/settings', role: 'Configurações de hotel' },
-  { path: 'pages/guest-portal', role: 'App no celular. No MVP isso é totem de quarto' },
-  { path: 'components/checkin/CheckInModal', role: 'Check-in interno do painel' },
-]
-
-export const RULES: string[] = [
-  'Totem não volta ao dashboard. Sai para o hub.',
-  'Console não lista totens no menu. Troca de superfície é pelo hub.',
-  'Check-in só no totem de recepção. Pedido só no totem de quarto ou área.',
-  'Guest Portal não é superfície. Não recrie /guest.',
-  'Dados mockados podem mudar no cliente. Não invente API ainda.',
-  'Tipografia Plus Jakarta Sans. Accent do console #2563EB. Sem roxo.',
+export const LIMITATIONS: string[] = [
+  'Protótipo frontend — sem servidor. Dados resetam ao recarregar a página.',
+  'Ativação do totem persiste no navegador (localStorage); pedidos e cadastros resetam ao recarregar.',
+  'Pagamento ainda não existe no totem de recepção — pedidos só acumulam valor estimado.',
+  'Leitura de documento no check-in é simulada.',
+  'Edição de reserva no console é simulada — não persiste entre sessões.',
+  'Não substitui o PMS: sem governança, manutenção, relatórios nem gestão interna.',
 ]
 
 export const SECTIONS = [
   { id: 'produto', label: 'Produto' },
-  { id: 'superficies', label: 'Superfícies' },
-  { id: 'mvp', label: 'MVP' },
-  { id: 'estado', label: 'Estado' },
-  { id: 'codigo', label: 'Código' },
-  { id: 'legado', label: 'Legado' },
-  { id: 'regras', label: 'Regras' },
+  { id: 'funcionalidades', label: 'Funcionalidades' },
+  { id: 'fluxos', label: 'Fluxos' },
+  { id: 'proximos', label: 'Próximos passos' },
+  { id: 'limitacoes', label: 'Limitações' },
 ] as const
 
 export type SectionId = (typeof SECTIONS)[number]['id']

@@ -1,7 +1,6 @@
 import { useMemo, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../../context/AppContext.tsx'
-import { mockOrders } from '../../data/mock/index.ts'
 import { formatShortDate } from '../../utils/format.ts'
 import { PageHeader } from '../../components/ui/PageHeader.tsx'
 import { Card } from '../../components/ui/Card.tsx'
@@ -9,15 +8,23 @@ import { SectionHeader } from '../../components/ui/SectionHeader.tsx'
 import { Badge } from '../../components/ui/Badge.tsx'
 import { EmptyState } from '../../components/ui/EmptyState.tsx'
 import type { Order, OrderStatus } from '../../types/index.ts'
+import { formatBRLExact } from '../../utils/format.ts'
+import { Button } from '../../components/ui/Button.tsx'
 
-const ORDER_TONE: Record<OrderStatus, { label: string; tone: 'amber' | 'blue' | 'green' }> = {
+const ORDER_TONE: Record<OrderStatus, { label: string; tone: 'amber' | 'blue' | 'green' | 'red' | 'neutral' }> = {
   open: { label: 'Aberto', tone: 'amber' },
   preparing: { label: 'Em preparo', tone: 'blue' },
   delivered: { label: 'Entregue', tone: 'green' },
+  cancelled: { label: 'Cancelado', tone: 'red' },
+}
+
+const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
+  open: 'preparing',
+  preparing: 'delivered',
 }
 
 export function QueuesPage() {
-  const { hotel, hotelReservations } = useApp()
+  const { hotelReservations, hotelOrders, updateOrderStatus } = useApp()
   const navigate = useNavigate()
 
   const waiting = useMemo(
@@ -28,9 +35,9 @@ export function QueuesPage() {
     () => hotelReservations.filter((item) => item.status === 'checked_in'),
     [hotelReservations],
   )
-  const orders = useMemo(() => mockOrders.filter((item) => item.hotelId === hotel.id), [hotel.id])
-  const openOrders = orders.filter((item) => item.status !== 'delivered')
-  const delivered = orders.filter((item) => item.status === 'delivered')
+  const orders = hotelOrders
+  const openOrders = orders.filter((item) => item.status === 'open' || item.status === 'preparing')
+  const closedOrders = orders.filter((item) => item.status === 'delivered' || item.status === 'cancelled')
 
   return (
     <div className="mx-auto flex max-w-[1200px] flex-col gap-8">
@@ -79,15 +86,15 @@ export function QueuesPage() {
           {orders.length === 0 ? (
             <EmptyState
               title="Nenhum pedido ainda"
-              description="Os totens de quarto e área passam a enviar pedidos no próximo passo."
+              description="Os totens de quarto e área enviam pedidos para cá assim que o hóspede confirma."
             />
           ) : (
             <ul className="flex flex-col">
               {openOrders.map((item) => (
-                <OrderRow key={item.id} order={item} />
+                <OrderRow key={item.id} order={item} onStatusChange={updateOrderStatus} />
               ))}
-              {delivered.map((item) => (
-                <OrderRow key={item.id} order={item} />
+              {closedOrders.map((item) => (
+                <OrderRow key={item.id} order={item} onStatusChange={updateOrderStatus} />
               ))}
             </ul>
           )}
@@ -130,17 +137,39 @@ function QueueRow({
   )
 }
 
-function OrderRow({ order }: { order: Order }) {
+function OrderRow({
+  order,
+  onStatusChange,
+}: {
+  order: Order
+  onStatusChange: (id: string, status: OrderStatus) => void
+}) {
   const tone = ORDER_TONE[order.status]
+  const next = NEXT_STATUS[order.status]
+
   return (
-    <li className="flex items-center justify-between gap-3 border-b border-line py-3 last:border-0">
-      <div>
+    <li className="flex flex-col gap-2 border-b border-line py-3 last:border-0 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
         <p className="text-[13px] font-medium">{order.items}</p>
         <p className="text-[12px] text-muted">
           {order.location} · {order.guestName} · {order.time}
+          {order.total > 0 && ` · ${formatBRLExact(order.total)}`}
         </p>
+        {order.notes && <p className="mt-1 text-[12px] text-muted">Obs.: {order.notes}</p>}
       </div>
-      <Badge tone={tone.tone}>{tone.label}</Badge>
+      <div className="flex shrink-0 items-center gap-2">
+        <Badge tone={tone.tone}>{tone.label}</Badge>
+        {next && (
+          <Button size="sm" variant="secondary" onClick={() => onStatusChange(order.id, next)}>
+            {ORDER_TONE[next].label}
+          </Button>
+        )}
+        {order.status !== 'cancelled' && order.status !== 'delivered' && (
+          <Button size="sm" variant="ghost" onClick={() => onStatusChange(order.id, 'cancelled')}>
+            Cancelar
+          </Button>
+        )}
+      </div>
     </li>
   )
 }

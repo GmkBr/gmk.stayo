@@ -43,11 +43,11 @@ export const mockHotels: Hotel[] = [
       ],
     },
     brand: {
-      primaryColor: '#3f6b4a',
-      secondaryColor: '#f4efe6',
+      primaryColor: '#3F436B',
+      secondaryColor: '#ECECEC',
       accentColor: '#c4a574',
       hotelName: 'Hotel Fazenda Aurora',
-      coverTone: '#dce6d9',
+      coverTone: '#A0A3CC',
     },
   },
   {
@@ -93,7 +93,7 @@ export const mockHotels: Hotel[] = [
     },
     brand: {
       primaryColor: '#1e3a5f',
-      secondaryColor: '#f3f1ec',
+      secondaryColor: '#FFFFFF',
       accentColor: '#b0894d',
       hotelName: 'Hotel Central',
       coverTone: '#d5dde6',

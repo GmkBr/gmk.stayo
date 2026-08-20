@@ -1,36 +1,78 @@
-import { Link } from 'react-router-dom'
+import { mockHotels } from '../../data/mock/index.ts'
 import { useApp } from '../../context/AppContext.tsx'
-import { Button } from '../../components/ui/Button.tsx'
+import { guestForRoom, useTotemSession } from '../../hooks/useTotemSession.ts'
+import { TotemSetup } from '../../components/totem/TotemSetup.tsx'
+import { RoomCatalogFlow, toOrderLines } from '../../components/totem/RoomCatalogFlow.tsx'
+import { categoriesForRoom } from './totemOrder.ts'
+import type { CartLine } from './totemOrder.ts'
 
 export function RoomTotemPage() {
-  const { hotel } = useApp()
-  const brand = hotel.brand
+  const { totem, hotel, isBound, bind } = useTotemSession('room')
+  const { reservations, catalogCategories, catalogItems, services, orders, addOrder, addActivity } = useApp()
+
+  const fallbackBrand = mockHotels[0].brand
+
+  if (!isBound || !totem || !hotel) {
+    return (
+      <TotemSetup
+        brand={hotel?.brand ?? fallbackBrand}
+        kind="room"
+        onBind={(code) => {
+          const result = bind(code)
+          return result.ok ? { ok: true } : { ok: false, error: result.error }
+        }}
+      />
+    )
+  }
+
+  const boundTotem = totem
+  const boundHotel = hotel
+
+  const hotelReservations = reservations.filter((item) => item.hotelId === boundHotel.id)
+  const guest =
+    guestForRoom(hotelReservations, boundTotem.roomNumber ?? '') ??
+    hotelReservations.find((item) => item.status === 'checked_in')
+
+  const categories = categoriesForRoom(catalogCategories.filter((item) => item.hotelId === boundHotel.id))
+  const items = catalogItems.filter((item) => item.hotelId === boundHotel.id)
+  const activeServices = services.filter((item) => item.hotelId === boundHotel.id && item.active)
+  const roomOrders = orders.filter(
+    (item) =>
+      item.hotelId === boundHotel.id &&
+      item.source === 'room' &&
+      item.location === `Quarto ${boundTotem.roomNumber}`,
+  )
+
+  function handleSubmit(lines: CartLine[], notes: string) {
+    const guestName = guest?.guestName ?? 'Hóspede'
+    const orderLines = toOrderLines(lines)
+    addOrder({
+      hotelId: boundHotel.id,
+      source: 'room',
+      location: `Quarto ${boundTotem.roomNumber}`,
+      guestName,
+      lines: orderLines,
+      totemId: boundTotem.id,
+      notes: notes || undefined,
+    })
+    addActivity({
+      time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      title: 'Pedido pelo quarto',
+      detail: `${guestName} · Quarto ${boundTotem.roomNumber}`,
+      kind: 'request',
+    })
+  }
 
   return (
-    <div
-      className="flex min-h-svh flex-col"
-      style={{ background: brand.secondaryColor, ['--hotel-primary' as string]: brand.primaryColor }}
-    >
-      <div className="flex items-center justify-between px-6 py-4">
-        <p className="text-[12px] font-semibold uppercase tracking-[0.16em]" style={{ color: brand.primaryColor }}>
-          {brand.hotelName}
-        </p>
-        <Link to="/" className="text-[12px] text-muted">
-          Sair do totem
-        </Link>
-      </div>
-
-      <div className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-6 pb-16">
-        <p className="text-[13px] font-medium text-muted">Quarto 203</p>
-        <h1 className="mt-2 text-[34px] font-semibold leading-tight tracking-[-0.045em]">Olá, João.</h1>
-        <p className="mt-3 text-[15px] text-muted">
-          Pedidos, room service e solicitações entram aqui no próximo passo. Por enquanto esta tela só marca o lugar do
-          totem.
-        </p>
-        <Button className="mt-8 h-14 min-w-56 text-base" disabled>
-          Fazer um pedido
-        </Button>
-      </div>
-    </div>
+    <RoomCatalogFlow
+      brand={boundHotel.brand}
+      roomNumber={boundTotem.roomNumber ?? '—'}
+      guestName={guest?.guestName ?? 'Hóspede'}
+      categories={categories}
+      items={items}
+      services={activeServices}
+      orders={roomOrders}
+      onSubmit={handleSubmit}
+    />
   )
 }

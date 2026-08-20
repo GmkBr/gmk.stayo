@@ -43,6 +43,14 @@ export function greetingForNow(date = new Date()) {
   return 'Boa noite'
 }
 
+export function clockLabel(date = new Date()) {
+  return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+}
+
+export function firstName(fullName: string) {
+  return fullName.trim().split(/\s+/)[0] ?? fullName
+}
+
 export function nightsBetween(checkIn: string, checkOut: string) {
   const a = parseISODate(checkIn).getTime()
   const b = parseISODate(checkOut).getTime()
