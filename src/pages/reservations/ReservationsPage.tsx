@@ -17,7 +17,8 @@ import { TableSkeleton } from '../../components/ui/Skeleton.tsx'
 import { Modal } from '../../components/ui/Modal.tsx'
 import { Input } from '../../components/ui/Input.tsx'
 import { DatePicker } from '../../components/ui/DatePicker.tsx'
-import type { Reservation, ReservationStatus } from '../../types/index.ts'
+import type { PaymentMethod, Reservation, ReservationStatus } from '../../types/index.ts'
+import { ApiError } from '../../api/client.ts'
 
 const STATUS_FILTER = [
   { value: 'all', label: 'Todos os status' },
@@ -36,10 +37,21 @@ const PERIOD_FILTER = [
   { value: 'staying', label: 'Em casa' },
 ]
 
+function todayIso() {
+  return new Date().toISOString().slice(0, 10)
+}
+
 export function ReservationsPage() {
-  const { hotelReservations, hotelRooms, hotelGuests, hotel, addReservation, updateReservationStatus, addActivity } = useApp()
+  const {
+    hotelReservations,
+    hotelRooms,
+    createReservation,
+    updateReservationStatus,
+    addActivity,
+    refreshing,
+  } = useApp()
   const { push } = useToast()
-  const loading = usePageLoading(400)
+  const loading = usePageLoading(200) || refreshing
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('all')
   const [period, setPeriod] = useState('all')
@@ -47,23 +59,32 @@ export function ReservationsPage() {
   const [creating, setCreating] = useState(false)
 
   const rows = useMemo(() => {
+    const today = todayIso()
     return hotelReservations.filter((item) => {
       const q = query.trim().toLowerCase()
       const matchQ = !q || `${item.guestName} ${item.roomNumber}`.toLowerCase().includes(q)
       const matchS = status === 'all' || item.status === status
       const matchP =
         period === 'all' ||
-        (period === 'today' && item.checkIn === '2026-08-14') ||
-        (period === 'upcoming' && item.checkIn > '2026-08-14') ||
+        (period === 'today' && item.checkIn === today) ||
+        (period === 'upcoming' && item.checkIn > today) ||
         (period === 'staying' && item.status === 'checked_in')
       return matchQ && matchS && matchP
     })
   }, [hotelReservations, query, status, period])
 
-  function setStatusOf(id: string, next: ReservationStatus, toast: string) {
-    updateReservationStatus(id, next)
-    setSelected((prev) => (prev && prev.id === id ? { ...prev, status: next } : prev))
-    push({ title: toast, tone: next === 'cancelled' ? 'danger' : 'success' })
+  async function setStatusOf(id: string, next: ReservationStatus, toast: string) {
+    try {
+      await updateReservationStatus(id, next)
+      setSelected((prev) => (prev && prev.id === id ? { ...prev, status: next } : prev))
+      push({ title: toast, tone: next === 'cancelled' ? 'danger' : 'success' })
+    } catch (err) {
+      push({
+        title: 'Não foi possível atualizar',
+        detail: err instanceof ApiError ? err.message : 'Tente de novo',
+        tone: 'danger',
+      })
+    }
   }
 
   return (
@@ -79,89 +100,76 @@ export function ReservationsPage() {
         }
       />
 
-      <Card padding="none">
-        <div className="flex flex-col gap-3 border-b border-line p-4 md:flex-row md:items-end">
-          <div className="md:max-w-xs md:flex-1">
-            <SearchInput value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar hóspede ou quarto" />
-          </div>
-          <div className="grid flex-1 grid-cols-2 gap-3 md:max-w-md">
-            <Select options={STATUS_FILTER} value={status} onChange={(e) => setStatus(e.target.value)} />
-            <Select options={PERIOD_FILTER} value={period} onChange={(e) => setPeriod(e.target.value)} />
-          </div>
+      <Card className="flex flex-col gap-4 p-4 sm:flex-row sm:items-end">
+        <div className="min-w-0 flex-1">
+          <SearchInput value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nome ou quarto" />
         </div>
-        {loading ? (
-          <TableSkeleton />
-        ) : (
-          <DataTable
-            rows={rows}
-            rowKey={(row) => row.id}
-            onRowClick={setSelected}
-            emptyTitle="Nenhuma reserva encontrada"
-            emptyDescription="Ajuste a busca ou os filtros para ver outras reservas."
-            columns={[
-              {
-                key: 'guest',
-                header: 'Hóspede',
-                render: (row) => (
-                  <span className="flex items-center gap-2">
-                    <Avatar name={row.guestName} size="sm" />
-                    <span className="font-medium">{row.guestName}</span>
-                  </span>
-                ),
-              },
-              { key: 'room', header: 'Quarto', render: (row) => `Quarto ${row.roomNumber}` },
-              { key: 'in', header: 'Check-in', render: (row) => formatShortDate(row.checkIn) },
-              { key: 'out', header: 'Check-out', render: (row) => formatShortDate(row.checkOut) },
-              {
-                key: 'guests',
-                header: 'Hóspedes',
-                render: (row) => `${row.guests} ${row.guests === 1 ? 'hóspede' : 'hóspedes'}`,
-              },
-              { key: 'status', header: 'Status', render: (row) => <ReservationStatusBadge status={row.status} /> },
-              { key: 'value', header: 'Valor', render: (row) => formatBRL(row.total) },
-              {
-                key: 'actions',
-                header: 'Ações',
-                render: (row) => (
-                  <button
-                    type="button"
-                    className="text-[12px] font-medium text-accent"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setSelected(row)
-                    }}
-                  >
-                    Ver
-                  </button>
-                ),
-              },
-            ]}
-          />
-        )}
+        <div className="grid grid-cols-2 gap-3 sm:w-[360px]">
+          <Select options={STATUS_FILTER} value={status} onChange={(e) => setStatus(e.target.value)} />
+          <Select options={PERIOD_FILTER} value={period} onChange={(e) => setPeriod(e.target.value)} />
+        </div>
       </Card>
+
+      {loading ? (
+        <TableSkeleton rows={6} />
+      ) : (
+        <DataTable
+          columns={[
+            {
+              key: 'guest',
+              header: 'Hóspede',
+              render: (row) => (
+                <div className="flex items-center gap-2">
+                  <Avatar name={row.guestName} size="sm" />
+                  <div>
+                    <p className="font-medium">{row.guestName}</p>
+                    <p className="text-[12px] text-muted">{row.guestEmail}</p>
+                  </div>
+                </div>
+              ),
+            },
+            { key: 'room', header: 'Quarto', render: (row) => row.roomNumber || '—' },
+            {
+              key: 'dates',
+              header: 'Estadia',
+              render: (row) => `${formatShortDate(row.checkIn)} – ${formatShortDate(row.checkOut)}`,
+            },
+            { key: 'total', header: 'Valor', render: (row) => formatBRL(row.total) },
+            {
+              key: 'status',
+              header: 'Status',
+              render: (row) => <ReservationStatusBadge status={row.status} />,
+            },
+          ]}
+          rows={rows}
+          rowKey={(row) => row.id}
+          onRowClick={(row) => setSelected(row)}
+        />
+      )}
 
       <Drawer
         open={Boolean(selected)}
         onClose={() => setSelected(null)}
-        title={selected?.guestName ?? ''}
-        subtitle={selected ? `Quarto ${selected.roomNumber} · ${selected.category}` : undefined}
+        title={selected?.guestName ?? 'Reserva'}
+        subtitle={selected ? `Quarto ${selected.roomNumber}` : undefined}
         footer={
           selected && (
-            <>
+            <div className="flex gap-2">
               {selected.status === 'pending' && (
-                <Button size="sm" onClick={() => setStatusOf(selected.id, 'confirmed', 'Reserva confirmada')}>
+                <Button size="sm" onClick={() => void setStatusOf(selected.id, 'confirmed', 'Reserva confirmada')}>
                   Confirmar
                 </Button>
               )}
-              <Button size="sm" variant="secondary" onClick={() => push({ title: 'Edição simulada', detail: 'Os campos permanecem locais neste protótipo.' })}>
-                Editar
-              </Button>
               {selected.status !== 'cancelled' && selected.status !== 'checked_out' && (
-                <Button size="sm" variant="danger" onClick={() => setStatusOf(selected.id, 'cancelled', 'Reserva cancelada')}>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={() => void setStatusOf(selected.id, 'cancelled', 'Reserva cancelada')}
+                >
                   Cancelar
                 </Button>
               )}
-            </>
+            </div>
           )
         }
       >
@@ -170,7 +178,10 @@ export function ReservationsPage() {
             <section className="grid grid-cols-2 gap-3">
               <Field label="Contato" value={selected.guestEmail} />
               <Field label="Telefone" value={selected.guestPhone} />
-              <Field label="Datas" value={`${formatShortDate(selected.checkIn)} – ${formatShortDate(selected.checkOut)}`} />
+              <Field
+                label="Datas"
+                value={`${formatShortDate(selected.checkIn)} – ${formatShortDate(selected.checkOut)}`}
+              />
               <Field label="Hóspedes" value={String(selected.guests)} />
               <Field label="Valor" value={formatBRL(selected.total)} />
               <Field label="Pagamento" value={selected.paymentMethod.toUpperCase()} />
@@ -186,7 +197,7 @@ export function ReservationsPage() {
               <p className="mb-2 text-[12px] text-muted">Histórico</p>
               <ul className="flex flex-col gap-2">
                 {selected.history.map((item) => (
-                  <li key={item.at} className="rounded-lg bg-canvas px-3 py-2">
+                  <li key={`${item.at}-${item.text}`} className="rounded-lg bg-canvas px-3 py-2">
                     <p className="text-[12px] text-muted">{item.at}</p>
                     <p>{item.text}</p>
                   </li>
@@ -200,14 +211,29 @@ export function ReservationsPage() {
       <NewReservationModal
         open={creating}
         rooms={hotelRooms}
-        guests={hotelGuests}
-        hotelId={hotel.id}
         onClose={() => setCreating(false)}
-        onCreate={(reservation) => {
-          addReservation(reservation)
-          addActivity({ time: 'agora', title: 'Reserva criada', detail: reservation.guestName, kind: 'reservation' })
-          push({ title: 'Reserva criada', detail: `${reservation.guestName} · quarto ${reservation.roomNumber}`, tone: 'success' })
-          setCreating(false)
+        onCreate={async (input) => {
+          try {
+            const reservation = await createReservation(input)
+            addActivity({
+              time: 'agora',
+              title: 'Reserva criada',
+              detail: reservation.guestName,
+              kind: 'reservation',
+            })
+            push({
+              title: 'Reserva criada',
+              detail: `${reservation.guestName} · quarto ${reservation.roomNumber}`,
+              tone: 'success',
+            })
+            setCreating(false)
+          } catch (err) {
+            push({
+              title: 'Falha ao criar',
+              detail: err instanceof ApiError ? err.message : 'Tente de novo',
+              tone: 'danger',
+            })
+          }
         }}
       />
     </div>
@@ -228,24 +254,36 @@ function NewReservationModal({
   onClose,
   onCreate,
   rooms,
-  guests,
-  hotelId,
 }: {
   open: boolean
   onClose: () => void
-  onCreate: (reservation: Reservation) => void
+  onCreate: (input: {
+    guestName: string
+    guestEmail?: string
+    guestPhone?: string
+    roomNumber?: string
+    category?: string
+    checkIn: string
+    checkOut: string
+    guests?: number
+    total?: number
+    paymentMethod?: PaymentMethod
+    notes?: string
+  }) => Promise<void>
   rooms: ReturnType<typeof useApp>['hotelRooms']
-  guests: ReturnType<typeof useApp>['hotelGuests']
-  hotelId: string
 }) {
-  const [guestId, setGuestId] = useState(guests[0]?.id ?? '')
-  const [roomId, setRoomId] = useState(rooms.find((r) => r.status === 'available' || r.status === 'clean')?.id ?? rooms[0]?.id ?? '')
-  const [checkIn, setCheckInDate] = useState('2026-08-16')
-  const [checkOut, setCheckOutDate] = useState('2026-08-18')
+  const today = todayIso()
+  const [guestName, setGuestName] = useState('')
+  const [guestEmail, setGuestEmail] = useState('')
+  const [guestPhone, setGuestPhone] = useState('')
+  const [roomNumber, setRoomNumber] = useState(rooms[0]?.number ?? '')
+  const [checkIn, setCheckInDate] = useState(today)
+  const [checkOut, setCheckOutDate] = useState(today)
   const [count, setCount] = useState('2')
+  const [total, setTotal] = useState('650')
+  const [saving, setSaving] = useState(false)
 
-  const guest = guests.find((g) => g.id === guestId)
-  const room = rooms.find((r) => r.id === roomId)
+  const room = rooms.find((r) => r.number === roomNumber)
 
   return (
     <Modal
@@ -258,42 +296,52 @@ function NewReservationModal({
             Cancelar
           </Button>
           <Button
+            disabled={saving}
             onClick={() => {
-              if (!guest || !room) return
-              onCreate({
-                id: `rs-${Date.now()}`,
-                hotelId,
-                guestId: guest.id,
-                guestName: guest.name,
-                guestEmail: guest.email,
-                guestPhone: guest.phone,
-                roomId: room.id,
-                roomNumber: room.number,
-                category: room.category,
+              if (!guestName.trim()) return
+              setSaving(true)
+              void onCreate({
+                guestName: guestName.trim(),
+                guestEmail: guestEmail.trim() || undefined,
+                guestPhone: guestPhone.trim() || undefined,
+                roomNumber: roomNumber || undefined,
+                category: room?.category,
                 checkIn,
                 checkOut,
                 guests: Number(count) || 1,
-                status: 'confirmed',
-                total: room.rate * 2,
+                total: Number(total) || 0,
                 paymentMethod: 'pix',
-                notes: 'Criada no protótipo.',
-                history: [{ at: 'agora', text: 'Reserva criada no painel' }],
-              })
+                notes: 'Criada no console',
+              }).finally(() => setSaving(false))
             }}
           >
-            Criar reserva
+            {saving ? 'Salvando…' : 'Criar reserva'}
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-3">
-        <Select label="Hóspede" value={guestId} onChange={(e) => setGuestId(e.target.value)} options={guests.map((g) => ({ value: g.id, label: g.name }))} />
-        <Select label="Quarto" value={roomId} onChange={(e) => setRoomId(e.target.value)} options={rooms.map((r) => ({ value: r.id, label: `${r.number} · ${r.category}` }))} />
+        <Input label="Nome do hóspede" value={guestName} onChange={(e) => setGuestName(e.target.value)} />
+        <Input label="E-mail" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} />
+        <Input label="Telefone" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} />
+        {rooms.length > 0 ? (
+          <Select
+            label="Quarto"
+            value={roomNumber}
+            onChange={(e) => setRoomNumber(e.target.value)}
+            options={rooms.map((r) => ({ value: r.number, label: `${r.number} · ${r.category}` }))}
+          />
+        ) : (
+          <Input label="Quarto" value={roomNumber} onChange={(e) => setRoomNumber(e.target.value)} />
+        )}
         <div className="grid grid-cols-2 gap-3">
           <DatePicker label="Check-in" value={checkIn} onChange={setCheckInDate} />
           <DatePicker label="Check-out" value={checkOut} onChange={setCheckOutDate} />
         </div>
-        <Input label="Hóspedes" type="number" min={1} value={count} onChange={(e) => setCount(e.target.value)} />
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Hóspedes" type="number" min={1} value={count} onChange={(e) => setCount(e.target.value)} />
+          <Input label="Valor total" type="number" min={0} value={total} onChange={(e) => setTotal(e.target.value)} />
+        </div>
       </div>
     </Modal>
   )

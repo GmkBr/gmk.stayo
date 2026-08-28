@@ -8,6 +8,8 @@ const KIND_DOT: Record<ActivityKind, string> = {
   request: 'Solicitação',
   reservation: 'Reserva',
   maintenance: 'Manutenção',
+  order: 'Pedido',
+  other: 'Atividade',
 }
 
 export function ActivityItem({

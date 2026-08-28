@@ -1,32 +1,20 @@
 import { Link } from 'react-router-dom'
-import { CalendarCheck, MonitorSmartphone, Tablet, UtensilsCrossed } from 'lucide-react'
+import { CalendarCheck, MonitorSmartphone } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { StayoLogo } from '../../components/brand/StayoLogo.tsx'
 
 const SURFACES = [
   {
-    to: '/filas',
+    to: '/login',
     title: 'Console',
-    description: 'Reservas, fila de check-in do totem e pedidos.',
+    description: 'Entre com a conta da equipe e acompanhe filas, reservas e totens.',
     icon: CalendarCheck,
   },
   {
-    to: '/totem/recepcao',
-    title: 'Totem de recepção',
-    description: 'Check-in de autoatendimento ligado às reservas.',
+    to: '/login',
+    title: 'Totem',
+    description: 'Entre com o login do dispositivo — a interface abre conforme o tipo do totem.',
     icon: MonitorSmartphone,
-  },
-  {
-    to: '/totem/quarto',
-    title: 'Totem de quarto',
-    description: 'Pedidos e solicitações no quarto.',
-    icon: Tablet,
-  },
-  {
-    to: '/totem/area',
-    title: 'Totem de área',
-    description: 'Pedidos no restaurante, spa e áreas comuns.',
-    icon: UtensilsCrossed,
   },
 ] as const
 
@@ -43,12 +31,12 @@ export function HubPage() {
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-6 pb-16">
         <h1 className="text-[32px] font-semibold leading-tight tracking-[-0.045em]">Onde você está?</h1>
         <p className="mt-2 max-w-lg text-[15px] text-muted">
-          O console acompanha o que os totens fazem. Cada totem é uma tela à parte.
+          Console e totem usam o mesmo login. O sistema detecta se é equipe ou dispositivo e abre a tela certa.
         </p>
 
         <ul className="mt-8 grid gap-3 sm:grid-cols-2">
           {SURFACES.map((item) => (
-            <li key={item.to}>
+            <li key={item.title}>
               <SurfaceCard {...item} />
             </li>
           ))}
@@ -63,13 +51,11 @@ function SurfaceCard({
   title,
   description,
   icon: Icon,
-  soon,
 }: {
   to: string
   title: string
   description: string
   icon: LucideIcon
-  soon?: boolean
 }) {
   return (
     <Link
@@ -79,15 +65,8 @@ function SurfaceCard({
       <span className="flex size-10 items-center justify-center rounded-xl bg-canvas text-ink">
         <Icon size={18} strokeWidth={1.75} />
       </span>
-      <span className="mt-4 flex items-center gap-2">
-        <span className="text-[16px] font-semibold tracking-[-0.03em]">{title}</span>
-        {soon && (
-          <span className="rounded-md bg-canvas px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">
-            Próximo
-          </span>
-        )}
-      </span>
-      <span className="mt-1 text-[13px] leading-relaxed text-muted">{description}</span>
+      <h2 className="mt-4 text-[15px] font-semibold tracking-[-0.02em]">{title}</h2>
+      <p className="mt-1 flex-1 text-[13px] leading-relaxed text-muted">{description}</p>
     </Link>
   )
 }

@@ -32,6 +32,7 @@ type Screen = 'home' | 'catalog' | 'orders' | 'done'
 
 type Props = {
   brand: HotelBrand
+  title?: string
   roomNumber: string
   guestName: string
   categories: CatalogCategory[]
@@ -43,6 +44,7 @@ type Props = {
 
 export function RoomCatalogFlow({
   brand,
+  title,
   roomNumber,
   guestName,
   categories,
@@ -167,7 +169,7 @@ export function RoomCatalogFlow({
   const sortedOrders = [...orders].sort((a, b) => b.time.localeCompare(a.time))
 
   return (
-    <TotemShell brand={brand} contextLabel={`Quarto ${roomNumber}`} guestMode>
+    <TotemShell brand={brand} title={title} contextLabel={`Quarto ${roomNumber}`} guestMode>
       {toast && (
         <div
           className="room-totem-toast fixed left-1/2 top-[max(4.5rem,env(safe-area-inset-top))] z-20 -translate-x-1/2"
@@ -180,10 +182,7 @@ export function RoomCatalogFlow({
 
       {screen === 'home' && (
         <div className={`room-totem-home flex flex-1 flex-col ${showCartDock ? 'pb-28' : 'pb-8'}`}>
-          <div
-            className="room-totem-hero -mx-6 mb-6 px-6 py-8 text-center"
-            style={{ background: brand.coverTone }}
-          >
+          <div className="room-totem-hero -mx-6 mb-6 border-b border-line/60 bg-white px-6 py-8 text-center">
             <p className="text-[13px] font-medium" style={{ color: brand.primaryColor }}>
               {greetingForNow()}, {firstName(guestName)}
             </p>
@@ -271,12 +270,7 @@ export function RoomCatalogFlow({
             Voltar
           </button>
 
-          <div
-            className="room-menu-hero -mx-6 mb-6 px-6 py-7"
-            style={{
-              background: `linear-gradient(165deg, ${brand.coverTone} 0%, color-mix(in srgb, ${brand.secondaryColor} 88%, ${brand.coverTone}) 100%)`,
-            }}
-          >
+          <div className="room-menu-hero -mx-6 mb-6 border-b border-line/60 bg-white px-6 py-7">
             <h2 className="text-[clamp(1.75rem,5vw,2.35rem)] font-semibold leading-tight tracking-[-0.04em] text-balance">
               {showServicesOnly ? 'Serviços do hotel' : activeCategory?.name ?? 'Cardápio'}
             </h2>
@@ -367,12 +361,7 @@ export function RoomCatalogFlow({
             Voltar
           </button>
 
-          <div
-            className="room-menu-hero -mx-6 mb-6 px-6 py-7"
-            style={{
-              background: `linear-gradient(165deg, ${brand.coverTone} 0%, color-mix(in srgb, ${brand.secondaryColor} 88%, ${brand.coverTone}) 100%)`,
-            }}
-          >
+          <div className="room-menu-hero -mx-6 mb-6 border-b border-line/60 bg-white px-6 py-7">
             <h2 className="text-[clamp(1.75rem,5vw,2.35rem)] font-semibold leading-tight tracking-[-0.04em]">
               Meus pedidos
             </h2>

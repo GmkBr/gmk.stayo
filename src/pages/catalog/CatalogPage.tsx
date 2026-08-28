@@ -79,7 +79,7 @@ export function CatalogPage() {
     setItemModal(true)
   }
 
-  function saveItem() {
+  async function saveItem() {
     if (!itemDraft.name.trim() || !itemDraft.categoryId) return
     const payload = {
       hotelId: hotel.id,
@@ -89,8 +89,8 @@ export function CatalogPage() {
       price: Number(itemDraft.price) || 0,
       available: itemDraft.available,
     }
-    if (editingItem) updateCatalogItem(editingItem.id, payload)
-    else addCatalogItem(payload)
+    if (editingItem) await updateCatalogItem(editingItem.id, payload)
+    else await addCatalogItem(payload)
     setItemModal(false)
   }
 
@@ -105,7 +105,7 @@ export function CatalogPage() {
     setCategoryModal(true)
   }
 
-  function saveCategory() {
+  async function saveCategory() {
     if (!categoryDraft.name.trim()) return
     const payload = {
       hotelId: hotel.id,
@@ -114,14 +114,14 @@ export function CatalogPage() {
       areaIds: categoryDraft.context === 'area' ? [categoryDraft.areaId] : undefined,
       sortOrder: Number(categoryDraft.sortOrder) || 1,
     }
-    if (editingCategory) updateCatalogCategory(editingCategory.id, payload)
-    else addCatalogCategory(payload)
+    if (editingCategory) await updateCatalogCategory(editingCategory.id, payload)
+    else await addCatalogCategory(payload)
     setCategoryModal(false)
   }
 
-  function saveArea() {
+  async function saveArea() {
     if (!areaDraft.name.trim()) return
-    addArea({ hotelId: hotel.id, name: areaDraft.name.trim(), active: areaDraft.active })
+    await addArea({ hotelId: hotel.id, name: areaDraft.name.trim(), active: areaDraft.active })
     setAreaModal(false)
     setAreaDraft({ name: '', active: true })
   }
@@ -224,7 +224,7 @@ export function CatalogPage() {
                   <Button
                     size="sm"
                     variant={service.active ? 'secondary' : 'outline'}
-                    onClick={() => toggleService(service.id)}
+                    onClick={() => void toggleService(service.id)}
                   >
                     {service.active ? 'Ativo' : 'Inativo'}
                   </Button>
@@ -270,7 +270,7 @@ export function CatalogPage() {
             <Button variant="ghost" onClick={() => setItemModal(false)}>
               Cancelar
             </Button>
-            <Button onClick={saveItem}>Salvar</Button>
+            <Button onClick={() => void saveItem()}>Salvar</Button>
           </>
         }
       >
@@ -315,7 +315,7 @@ export function CatalogPage() {
             <Button variant="ghost" onClick={() => setCategoryModal(false)}>
               Cancelar
             </Button>
-            <Button onClick={saveCategory}>Salvar</Button>
+            <Button onClick={() => void saveCategory()}>Salvar</Button>
           </>
         }
       >
@@ -355,7 +355,7 @@ export function CatalogPage() {
             <Button variant="ghost" onClick={() => setAreaModal(false)}>
               Cancelar
             </Button>
-            <Button onClick={saveArea}>Salvar</Button>
+            <Button onClick={() => void saveArea()}>Salvar</Button>
           </>
         }
       >

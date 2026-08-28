@@ -22,6 +22,7 @@ type Screen = 'home' | 'catalog' | 'cart' | 'done'
 
 type Props = {
   brand: HotelBrand
+  title?: string
   contextLabel: string
   greeting: string
   subtitle: string
@@ -35,6 +36,7 @@ type Props = {
 
 export function CatalogFlow({
   brand,
+  title,
   contextLabel,
   greeting,
   subtitle,
@@ -133,7 +135,7 @@ export function CatalogFlow({
     ) : undefined
 
   return (
-    <TotemShell brand={brand} contextLabel={contextLabel} onUnbind={onUnbind} footer={footer}>
+    <TotemShell brand={brand} title={title} contextLabel={contextLabel} onUnbind={onUnbind} footer={footer}>
       {screen === 'home' && (
         <div className="flex flex-1 flex-col justify-center pb-8">
           <p className="text-[13px] font-medium text-muted">{greetingForNow()}</p>

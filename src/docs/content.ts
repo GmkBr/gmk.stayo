@@ -21,7 +21,7 @@ export type DocUpcoming = {
   detail: string
 }
 
-export const DOC_UPDATED = '19 ago 2026'
+export const DOC_UPDATED = '27 ago 2026'
 
 export const PRODUCT_SUMMARY = {
   title: 'STAYO',
@@ -32,19 +32,35 @@ export const PRODUCT_SUMMARY = {
   users: [
     { role: 'Hóspede', uses: 'Totens de recepção, quarto e área' },
     { role: 'Recepção / equipe', uses: 'Console — filas e reservas' },
-    { role: 'Administrador', uses: 'Console — troca de hotel e gestão de reservas' },
+    { role: 'Administrador', uses: 'Console — criar/editar hotel, troca de contexto e gestão operacional' },
   ],
 }
 
 export const FEATURES: DocFeature[] = [
   {
-    title: 'Hub',
-    path: '/',
+    title: 'Login / cadastro',
+    path: '/login',
     status: 'live',
-    summary: 'Ponto de entrada. Escolhe entre console ou totem.',
+    summary: 'Entrada do app. Login e cadastro via API (user + tokens). Sem JWT, rotas do console redirecionam para cá.',
     capabilities: [
-      'Lista as quatro superfícies do produto',
-      'Indica quais totens ainda estão em construção',
+      'POST /auth/login → user + accessToken + refreshToken',
+      'POST /auth/register → mesmo formato (Auth + perfil + tokens) — só operadores',
+      'GET /me com accountType: human | totem',
+      'Human → /hoteis; totem → /totem (interface pelo kind)',
+      'Sessão em localStorage (stayo.auth)',
+      'Sair limpa sessão e hotel selecionado',
+      '401 da API desloga e volta ao login',
+    ],
+    limitations: ['Hub (/hub) permanece público; totem exige login'],
+  },
+  {
+    title: 'Hub',
+    path: '/hub',
+    status: 'live',
+    summary: 'Atalhos para login do console ou do totem. Público.',
+    capabilities: [
+      'Dois atalhos: Console (equipe) e Totem (dispositivo)',
+      'Ambos levam a /login — o sistema detecta o tipo de conta',
       'Link para esta documentação',
     ],
   },
@@ -77,16 +93,46 @@ export const FEATURES: DocFeature[] = [
     limitations: ['Edição de campos é simulada — alterações ficam só nesta sessão'],
   },
   {
-    title: 'Totem de recepção',
-    path: '/totem/recepcao',
+    title: 'Console — Hotéis',
+    path: '/hoteis',
     status: 'live',
-    summary: 'Check-in de autoatendimento. O hóspede resolve sozinho na chegada.',
+    summary: 'Hub de seleção após login. Escolhe o hotel do console ou cadastra um novo em fluxo guiado.',
+    capabilities: [
+      'Bootstrap leve no hub: só GET /me e GET /hotels (sem reservas/pedidos/totens até entrar no console)',
+      'Empty state + botão para /hoteis/novo',
+      'Wizard de cadastro e edição: identidade, termos (texto e/ou PDF), marca com preview',
+      'Termos: termsText (inline) e termsPath (PDF no storage) — totem exibe texto, PDF ou defaults',
+      'PUT envia "" para limpar termos vazios; omitir campo mantém valor no backend',
+      'Criar hotel (POST /hotels) — usuário vira dono + ADMIN',
+      'Editar/excluir no wizard /hoteis/:id/editar (PUT / DELETE) — soft delete no passo 1',
+      'Topbar do console volta a /hoteis para trocar de hotel',
+    ],
+    limitations: ['Permissão de editar/excluir é validada no backend (dono ou ADMIN)'],
+  },
+  {
+    title: 'Totem (entrada)',
+    path: '/totem',
+    status: 'live',
+    summary: 'Rota protegida após login de conta totem. Renderiza a interface conforme o kind (recepção, quarto, área, operação).',
+    capabilities: [
+      'RequireTotem: só accountType totem',
+      'Bootstrap monta hotel local com totem.brand (login /me / refresh) — sem GET /hotels/{id}',
+      'kind reception → check-in; room → catálogo quarto; area → catálogo área',
+      'kind operation → placeholder (fila de cozinha em breve)',
+    ],
+    limitations: ['Totem operação ainda sem fila de pedidos no dispositivo'],
+  },
+  {
+    title: 'Totem de recepção',
+    path: '/totem',
+    status: 'live',
+    summary: 'Check-in de autoatendimento. Conta totem kind=reception após login.',
     capabilities: [
       'Busca reserva por nome ou código',
       'Valida status: bloqueia canceladas, pendentes, já feitas ou fora da data',
       'Mostra dados da reserva e quarto atribuído',
       'Simula leitura de documento',
-      'Apresenta termos do hotel e exige aceite',
+      'Apresenta termos do hotel (texto cadastrado ou padrão STAYO) e exige aceite',
       'Confirma check-in e orienta caminho até o quarto',
       'Modo operador para a recepção intervir',
       'Reinicia sozinho após inatividade',
@@ -95,12 +141,12 @@ export const FEATURES: DocFeature[] = [
   },
   {
     title: 'Totem de quarto',
-    path: '/totem/quarto',
+    path: '/totem',
     status: 'live',
-    summary: 'Pedidos e solicitações dentro do quarto. Tablet na parede ou mesa.',
+    summary: 'Pedidos e solicitações dentro do quarto. Conta totem kind=room.',
     capabilities: [
-      'Ativação única por código cadastrado no console',
-      'Identificação fixa por quarto após ativação',
+      'Login com usuário totem criado no console',
+      'Identificação fixa por quarto (roomNumber no cadastro)',
       'Home com atalhos (Alimentos, Meus pedidos, Spa, Cardápio) e destaques',
       'Catálogo visual: ícones, badges de tempo, feedback ao adicionar',
       'Carrinho, observações e envio para a fila do console',
@@ -110,26 +156,35 @@ export const FEATURES: DocFeature[] = [
   },
   {
     title: 'Totem de área',
-    path: '/totem/area',
+    path: '/totem',
     status: 'live',
-    summary: 'Pedidos em restaurante, spa, lobby. Pode ser totem grande ou tablet.',
+    summary: 'Pedidos em restaurante, spa, lobby. Conta totem kind=area.',
     capabilities: [
-      'Ativação única por código cadastrado no console',
-      'Vinculado à área definida no cadastro (restaurante, spa…)',
+      'Login com usuário totem vinculado à área do cadastro',
       'Cardápio filtrado por área',
       'Carrinho e envio para a fila do console',
       'Cobrança orientada para o checkout na recepção',
     ],
   },
   {
+    title: 'Totem de operação',
+    path: '/totem',
+    status: 'partial',
+    summary: 'Cozinha e preparo de pedidos. Cadastro e login prontos; interface em breve.',
+    capabilities: ['Cadastro no console com kind=operation', 'Login redireciona para placeholder'],
+    limitations: ['Fila de pedidos no dispositivo ainda não implementada'],
+  },
+  {
     title: 'Console — Totens',
     path: '/totens',
     status: 'live',
-    summary: 'Cadastro de tablets de quarto e de área com código de ativação.',
+    summary: 'Cadastro de totens como usuários Supabase do hotel (login + senha).',
     capabilities: [
-      'Listar totens de quarto e de área do hotel',
-      'Criar e editar: nome, código, quarto ou área, status ativo',
-      'Copiar código para configurar o dispositivo',
+      'Tipos: recepção, quarto, área, operação',
+      'loginSuffix livre (ex.: recepcao-01) — único globalmente; e-mail: {loginId}@totem.stayo.app',
+      'Criar com senha; redefinir senha na edição; login imutável',
+      'Campos condicionais: quarto ou área conforme o tipo',
+      'POST /hotels/{id}/totems — backend cria user + registro totem',
     ],
   },
   {
@@ -156,6 +211,40 @@ export const FEATURES: DocFeature[] = [
 ]
 
 export const FLOWS: DocFlow[] = [
+  {
+    title: 'Entrar no app',
+    actor: 'Equipe ou totem',
+    status: 'live',
+    steps: [
+      'Abre /login (ou /hub → Console ou Totem)',
+      'Informa e-mail/login e senha (POST /auth/login)',
+      'GET /me define accountType: human ou totem',
+      'Human → /hoteis; totem → /totem com interface do kind',
+      '401 limpa sessão e volta ao login',
+    ],
+  },
+  {
+    title: 'Cadastrar totem',
+    actor: 'Administrador no console',
+    status: 'live',
+    steps: [
+      'Console → Totens → Novo totem',
+      'Escolhe tipo (recepção, quarto, área, operação)',
+      'Define nome, loginSuffix (ex.: recepcao-01) e senha',
+      'Backend cria usuário Supabase ({loginId}@totem.stayo.app) + registro totem',
+      'No tablet, login com as credenciais → interface do tipo',
+    ],
+  },
+  {
+    title: 'Seleção de hotel e console',
+    actor: 'Equipe / administrador',
+    status: 'live',
+    steps: [
+      'Após autenticar, abre /hoteis',
+      'Escolhe o hotel ou vai em /hoteis/novo para cadastrar (wizard em 3 passos)',
+      'Entra em Filas / Reservas / Totens / Cardápio',
+    ],
+  },
   {
     title: 'Check-in pelo hóspede',
     actor: 'Hóspede no totem de recepção',
@@ -198,11 +287,11 @@ export const FLOWS: DocFlow[] = [
     actor: 'Hóspede no totem de quarto',
     status: 'live',
     steps: [
-      'Equipe cadastra o totem no console e copia o código',
-      'No tablet, informa o código uma única vez (fica fixo por quarto)',
-      'Hóspede abre o totem e vê saudação com o nome',
+      'Equipe cadastra totem no console (login + senha, tipo quarto)',
+      'No tablet, faz login com a conta do totem',
+      'Hóspede vê saudação com o nome',
       'Navega pelo catálogo, monta o pedido e confirma',
-      'Pedido aparece na fila do console em tempo real',
+      'Pedido aparece na fila do console',
       'Equipe prepara, atualiza status ou cancela',
       'Pagamento fica para o checkout na recepção',
     ],
@@ -213,7 +302,7 @@ export const FLOWS: DocFlow[] = [
     status: 'live',
     steps: [
       'Equipe cadastra totem de área no console (restaurante, spa…)',
-      'Tablet ativado com código único',
+      'Tablet entra com login do totem',
       'Hóspede consulta cardápio da área',
       'Faz o pedido com observações (ex.: número do quarto)',
       'Pedido entra na fila do console',
@@ -223,6 +312,14 @@ export const FLOWS: DocFlow[] = [
 ]
 
 export const UPCOMING: DocUpcoming[] = [
+  {
+    title: 'Refresh de token',
+    detail: 'POST /auth/refresh com refreshToken salvo, renovando a sessão sem novo login.',
+  },
+  {
+    title: 'Totem de operação (cozinha)',
+    detail: 'Fila de pedidos no dispositivo kind=operation para preparo e entrega.',
+  },
   {
     title: 'Checkout na recepção',
     detail: 'Fechar conta e pagamento no totem de recepção com itens dos pedidos de quarto e área.',
@@ -234,11 +331,14 @@ export const UPCOMING: DocUpcoming[] = [
 ]
 
 export const LIMITATIONS: string[] = [
-  'Protótipo frontend — sem servidor. Dados resetam ao recarregar a página.',
-  'Ativação do totem persiste no navegador (localStorage); pedidos e cadastros resetam ao recarregar.',
-  'Pagamento ainda não existe no totem de recepção — pedidos só acumulam valor estimado.',
+  'Frontend consome a API Spring (/api/v1). Login único; GET /me com accountType. Ver docs/AUTH.md.',
+  'Console (/hoteis, /filas…) exige accountType human. Totem (/totem) exige accountType totem.',
+  'Backend deve implementar criação de usuário totem no POST /hotels/{id}/totems e totem no GET /me.',
+  '401 desloga qualquer sessão (human ou totem).',
+  'Refresh automático de token ainda não está no FE.',
+  'Totem operação: só cadastro + login; fila no dispositivo em breve.',
+  'Pagamento ainda não existe no totem de recepção.',
   'Leitura de documento no check-in é simulada.',
-  'Edição de reserva no console é simulada — não persiste entre sessões.',
   'Não substitui o PMS: sem governança, manutenção, relatórios nem gestão interna.',
 ]
 

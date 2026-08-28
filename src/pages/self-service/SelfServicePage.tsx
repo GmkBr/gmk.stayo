@@ -7,6 +7,7 @@ import { Input } from '../../components/ui/Input.tsx'
 import { formatLongDate } from '../../utils/format.ts'
 import { cn } from '../../utils/cn.ts'
 import type { Reservation } from '../../types/index.ts'
+import { totemBrandTitle, totemShellStyle } from '../../lib/totemBrand.ts'
 import {
   DONE_MS,
   FLOW_STEPS,
@@ -16,7 +17,7 @@ import {
   clockLabel,
   firstName,
   searchReservations,
-  termsFor,
+  termsDisplayFor,
   wingCopy,
   type FlowStepId,
 } from './totemCheckin.ts'
@@ -28,9 +29,9 @@ const KIOSK_BTN = 'h-14 min-h-14 w-full rounded-xl text-base'
 
 export function SelfServicePage() {
   const navigate = useNavigate()
-  const { hotel, hotelReservations, hotelRooms, updateReservationStatus, updateRoomStatus, addActivity } = useApp()
+  const { hotel, hotelRooms, searchCheckin, completeCheckin, addActivity } = useApp()
   const brand = hotel.brand
-  const terms = termsFor(hotel)
+  const terms = termsDisplayFor(hotel)
   const termsId = useId()
 
   const [screen, setScreen] = useState<Screen>('início')
@@ -136,27 +137,39 @@ export function SelfServicePage() {
     setSearchError('')
     window.clearTimeout(searchTimer.current)
     searchTimer.current = window.setTimeout(() => {
-      const outcome = searchReservations(hotelReservations, query)
-      setSearching(false)
-      if (outcome.kind === 'empty') {
-        setSearchError('Digite o nome completo ou o código da reserva.')
-        return
-      }
-      if (outcome.kind === 'none') {
-        setSearchError('Nenhuma reserva encontrada. Confira o nome ou chame a recepção, ao lado.')
-        return
-      }
-      if (outcome.kind === 'blocked') {
-        setSearchError(outcome.message)
-        return
-      }
-      if (outcome.kind === 'many') {
-        setMatches(outcome.reservations)
-        setScreen('lista')
-        return
-      }
-      setMatches([])
-      openReservation(outcome.reservation)
+      void (async () => {
+        try {
+          const list = await searchCheckin(query)
+          setSearching(false)
+          if (!query.trim()) {
+            setSearchError('Digite o nome completo ou o código da reserva.')
+            return
+          }
+          const outcome = searchReservations(list, query)
+          if (outcome.kind === 'empty') {
+            setSearchError('Digite o nome completo ou o código da reserva.')
+            return
+          }
+          if (outcome.kind === 'none') {
+            setSearchError('Nenhuma reserva encontrada. Confira o nome ou chame a recepção, ao lado.')
+            return
+          }
+          if (outcome.kind === 'blocked') {
+            setSearchError(outcome.message)
+            return
+          }
+          if (outcome.kind === 'many') {
+            setMatches(outcome.reservations)
+            setScreen('lista')
+            return
+          }
+          setMatches([])
+          openReservation(outcome.reservation)
+        } catch {
+          setSearching(false)
+          setSearchError('Não foi possível consultar a API. Verifique a conexão e o login.')
+        }
+      })()
     }, SEARCH_MS)
   }
 
@@ -169,22 +182,28 @@ export function SelfServicePage() {
 
   function finishCheckIn() {
     if (!reservation || !accepted) return
-    updateReservationStatus(reservation.id, 'checked_in')
-    updateRoomStatus(reservation.roomId, 'occupied')
-    addActivity({
-      time: clockLabel(),
-      title: 'Check-in no totem',
-      detail: `${reservation.guestName} — Quarto ${reservation.roomNumber}`,
-      kind: 'checkin',
-    })
-    setScreen('fim')
-    setSecondsLeft(DONE_MS / 1000)
-    window.clearInterval(tickTimer.current)
-    tickTimer.current = window.setInterval(() => {
-      setSecondsLeft((value) => Math.max(0, value - 1))
-    }, 1000)
-    window.clearTimeout(doneTimer.current)
-    doneTimer.current = window.setTimeout(resetSession, DONE_MS)
+    void completeCheckin(reservation.id)
+      .then((next) => {
+        setReservation(next)
+        addActivity({
+          time: clockLabel(),
+          title: 'Check-in no totem',
+          detail: `${next.guestName} — Quarto ${next.roomNumber}`,
+          kind: 'checkin',
+        })
+        setScreen('fim')
+        setSecondsLeft(DONE_MS / 1000)
+        window.clearInterval(tickTimer.current)
+        tickTimer.current = window.setInterval(() => {
+          setSecondsLeft((value) => Math.max(0, value - 1))
+        }, 1000)
+        window.clearTimeout(doneTimer.current)
+        doneTimer.current = window.setTimeout(resetSession, DONE_MS)
+      })
+      .catch(() => {
+        setSearchError('Não foi possível concluir o check-in. A recepção resolve.')
+        setScreen('busca')
+      })
   }
 
   const footer = footerFor(screen, {
@@ -201,18 +220,10 @@ export function SelfServicePage() {
   })
 
   return (
-    <div
-      className="totem-shell flex min-h-svh flex-col"
-      style={{
-        background: brand.secondaryColor,
-        ['--hotel-primary' as string]: brand.primaryColor,
-        ['--hotel-accent' as string]: brand.accentColor,
-        ['--hotel-secondary' as string]: brand.secondaryColor,
-      }}
-    >
+    <div className="totem-shell flex min-h-svh flex-col" style={totemShellStyle(brand)}>
       <header className="px-6 pt-[max(1rem,env(safe-area-inset-top))] pb-3">
         <p className="text-[13px] font-semibold uppercase tracking-[0.14em]" style={{ color: brand.primaryColor }}>
-          {brand.hotelName}
+          {totemBrandTitle(brand, hotel.name)}
         </p>
       </header>
 
@@ -371,11 +382,32 @@ export function SelfServicePage() {
 
         {screen === 'termos' && (
           <FlowBody title="Termos da hospedagem">
-            <ul className="space-y-3 text-[16px] leading-relaxed text-muted">
-              {terms.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
+            {terms.lines.length > 0 && (
+              <ul className="space-y-3 text-[16px] leading-relaxed text-muted">
+                {terms.lines.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            )}
+            {terms.pdfUrl && (
+              <div className={terms.lines.length > 0 ? 'mt-5' : ''}>
+                <p className="mb-2 text-[14px] font-medium text-ink">Documento completo</p>
+                <iframe
+                  title="Termos da hospedagem em PDF"
+                  src={terms.pdfUrl}
+                  className="h-[min(42vh,320px)] w-full rounded-xl border border-line bg-canvas"
+                />
+                <a
+                  href={terms.pdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex min-h-11 items-center text-[14px] font-medium underline-offset-2 hover:underline"
+                  style={{ color: brand.primaryColor }}
+                >
+                  Abrir PDF em tela cheia
+                </a>
+              </div>
+            )}
             <label htmlFor={termsId} className="mt-6 flex min-h-14 cursor-pointer items-start gap-3">
               <input
                 id={termsId}

@@ -67,7 +67,7 @@ textarea {
   --color-accent: color-mix(in srgb, var(--hotel-primary) 90%, #000);
   --color-accent-hover: color-mix(in srgb, var(--hotel-primary) 76%, #000);
   --color-accent-soft: color-mix(in srgb, var(--hotel-primary) 14%, #fff);
-  --color-muted: color-mix(in srgb, #171717 72%, var(--hotel-secondary, #f4efe6));
+  --color-muted: color-mix(in srgb, #171717 62%, #ffffff);
 }
 
 .totem-shell ::selection {

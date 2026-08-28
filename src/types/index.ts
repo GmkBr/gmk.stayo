@@ -1,3 +1,11 @@
+export type ReservationStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'arriving_today'
+  | 'checked_in'
+  | 'checked_out'
+  | 'cancelled'
+
 export type RoomStatus =
   | 'available'
   | 'occupied'
@@ -7,55 +15,17 @@ export type RoomStatus =
   | 'maintenance'
   | 'blocked'
 
-export type ReservationStatus =
-  | 'pending'
-  | 'confirmed'
-  | 'arriving_today'
-  | 'checked_in'
-  | 'checked_out'
-  | 'cancelled'
-
-export type GuestStatus = 'staying' | 'arriving' | 'departed' | 'vip'
-
-export type MaintenanceStatus = 'open' | 'in_progress' | 'resolved'
-export type MaintenancePriority = 'low' | 'medium' | 'high'
-
-export type HousekeepingStatus = 'waiting' | 'in_progress' | 'done'
-export type HousekeepingPriority = 'low' | 'medium' | 'high'
-export type HousekeepingReason = 'checkout' | 'stayover' | 'deep' | 'blocked'
-
 export type PaymentMethod = 'credit' | 'pix' | 'debit' | 'cash' | 'invoice'
-
-export type Period = 'today' | '7d' | '30d'
 
 export type ActivityKind =
   | 'checkin'
   | 'checkout'
-  | 'cleaning'
   | 'request'
   | 'reservation'
+  | 'order'
+  | 'other'
+  | 'cleaning'
   | 'maintenance'
-
-export type Hotel = {
-  id: string
-  name: string
-  city: string
-  state: string
-  roomCount: number
-  occupancy: number
-  occupancyDelta: number
-  revenue: number
-  revenueDelta: number
-  checkInsToday: number
-  checkOutsToday: number
-  checkInsDelta: number
-  checkOutsDelta: number
-  roomsToClean: number
-  inMaintenance: number
-  requests: number
-  occupancySeries: Record<Period, OccupancyPoint[]>
-  brand: HotelBrand
-}
 
 export type HotelBrand = {
   primaryColor: string
@@ -65,9 +35,17 @@ export type HotelBrand = {
   coverTone: string
 }
 
-export type OccupancyPoint = {
-  label: string
-  value: number
+export type Hotel = {
+  id: string
+  slug: string
+  name: string
+  city: string
+  state: string
+  brand: HotelBrand
+  /** Texto exibido no check-in do totem (uma regra por linha). Opcional. */
+  termsText?: string
+  /** Path do PDF no storage (ex.: hotel-assets/mare/terms.pdf). Opcional. */
+  termsPath?: string
 }
 
 export type Room = {
@@ -78,12 +56,6 @@ export type Room = {
   category: string
   capacity: number
   status: RoomStatus
-  guestName?: string
-  guestId?: string
-  checkIn?: string
-  checkOut?: string
-  lastCleaned?: string
-  nextReservation?: string
   rate: number
 }
 
@@ -95,37 +67,12 @@ export type Guest = {
   phone: string
   document: string
   nationality: string
-  status: GuestStatus
+  status: 'staying' | 'arriving' | 'departed' | 'vip'
   lastStay?: string
   stays: number
   preferences: string[]
   notes: string
   vip?: boolean
-}
-
-export type StayRecord = {
-  id: string
-  guestId: string
-  roomNumber: string
-  checkIn: string
-  checkOut: string
-  total: number
-}
-
-export type ConsumptionItem = {
-  id: string
-  guestId: string
-  label: string
-  date: string
-  amount: number
-}
-
-export type GuestRequest = {
-  id: string
-  guestId: string
-  label: string
-  date: string
-  status: string
 }
 
 export type Reservation = {
@@ -146,29 +93,6 @@ export type Reservation = {
   paymentMethod: PaymentMethod
   notes: string
   history: { at: string; text: string }[]
-}
-
-export type HousekeepingTask = {
-  id: string
-  hotelId: string
-  roomId: string
-  roomNumber: string
-  reason: HousekeepingReason
-  priority: HousekeepingPriority
-  assignee: string
-  status: HousekeepingStatus
-}
-
-export type MaintenanceRequest = {
-  id: string
-  hotelId: string
-  code: string
-  title: string
-  roomNumber: string
-  priority: MaintenancePriority
-  status: MaintenanceStatus
-  openedAt: string
-  notes: string
 }
 
 export type Service = {
@@ -212,21 +136,37 @@ export type Order = {
   total: number
   status: OrderStatus
   time: string
+  createdAt?: string
   totemId?: string
   notes?: string
 }
 
-export type TotemKind = 'room' | 'area'
+export type TotemKind = 'reception' | 'room' | 'area' | 'operation'
 
-export type Totem = {
+export type AccountType = 'human' | 'totem'
+
+export type TotemProfile = {
   id: string
   hotelId: string
-  code: string
+  loginId: string
   name: string
   kind: TotemKind
   roomNumber?: string
   areaId?: string
   active: boolean
+  brand?: HotelBrand
+}
+
+export type Totem = {
+  id: string
+  hotelId: string
+  loginId: string
+  name: string
+  kind: TotemKind
+  roomNumber?: string
+  areaId?: string
+  active: boolean
+  userId?: string
 }
 
 export type HotelArea = {
@@ -255,6 +195,43 @@ export type CatalogItem = {
   description: string
   price: number
   available: boolean
+  imagePath?: string
+}
+
+export type CurrentUser = {
+  name: string
+  role: string
+  initials: string
+  email?: string
+}
+
+/** Tipos legados (mocks não usados pela API). Mantidos para o build. */
+export type HousekeepingStatus = 'waiting' | 'in_progress' | 'done'
+export type HousekeepingPriority = 'low' | 'medium' | 'high'
+export type HousekeepingReason = 'checkout' | 'stayover' | 'deep' | 'blocked'
+export type HousekeepingTask = {
+  id: string
+  hotelId: string
+  roomId: string
+  roomNumber: string
+  reason: HousekeepingReason
+  priority: HousekeepingPriority
+  assignee: string
+  status: HousekeepingStatus
+}
+
+export type MaintenanceStatus = 'open' | 'in_progress' | 'resolved'
+export type MaintenancePriority = 'low' | 'medium' | 'high'
+export type MaintenanceRequest = {
+  id: string
+  hotelId: string
+  code: string
+  title: string
+  roomNumber: string
+  priority: MaintenancePriority
+  status: MaintenanceStatus
+  openedAt: string
+  notes: string
 }
 
 export type AppNotification = {
@@ -266,8 +243,27 @@ export type AppNotification = {
   unread: boolean
 }
 
-export type CurrentUser = {
-  name: string
-  role: string
-  initials: string
+export type Period = 'today' | '7d' | '30d'
+export type OccupancyPoint = { label: string; value: number }
+export type StayRecord = {
+  id: string
+  guestId: string
+  roomNumber: string
+  checkIn: string
+  checkOut: string
+  total: number
+}
+export type ConsumptionItem = {
+  id: string
+  guestId: string
+  label: string
+  date: string
+  amount: number
+}
+export type GuestRequest = {
+  id: string
+  guestId: string
+  label: string
+  date: string
+  status: string
 }

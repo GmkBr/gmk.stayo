@@ -1,9 +1,12 @@
 import { Link } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import type { HotelBrand } from '../../types/index.ts'
+import { totemBrandTitle, totemShellStyle } from '../../lib/totemBrand.ts'
 
 type Props = {
   brand: HotelBrand
+  /** Nome exibido no topo quando brand.hotelName vier vazio. */
+  title?: string
   contextLabel?: string
   guestMode?: boolean
   onUnbind?: () => void
@@ -11,21 +14,15 @@ type Props = {
   footer?: ReactNode
 }
 
-export function TotemShell({ brand, contextLabel, guestMode, onUnbind, children, footer }: Props) {
+export function TotemShell({ brand, title, contextLabel, guestMode, onUnbind, children, footer }: Props) {
+  const displayName = totemBrandTitle(brand, title)
+
   return (
-    <div
-      className="totem-shell flex min-h-svh flex-col"
-      style={{
-        background: brand.secondaryColor,
-        ['--hotel-primary' as string]: brand.primaryColor,
-        ['--hotel-accent' as string]: brand.accentColor,
-        ['--hotel-secondary' as string]: brand.secondaryColor,
-      }}
-    >
+    <div className="totem-shell flex min-h-svh flex-col" style={totemShellStyle(brand)}>
       <header className="flex items-center justify-between px-6 pt-[max(1rem,env(safe-area-inset-top))] pb-3">
         <div>
           <p className="text-[13px] font-semibold uppercase tracking-[0.14em]" style={{ color: brand.primaryColor }}>
-            {brand.hotelName}
+            {displayName}
           </p>
           {contextLabel && <p className="mt-0.5 text-[12px] text-muted">{contextLabel}</p>}
         </div>
