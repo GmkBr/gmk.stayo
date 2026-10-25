@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ChevronDown, LogOut, Menu, Search, Settings } from 'lucide-react'
-import { useApp } from '../../context/AppContext.tsx'
+import { useApp } from '../../app/useApp.ts'
 import { useAuth } from '../../auth/AuthContext.tsx'
 import { Breadcrumb } from '../ui/Breadcrumb.tsx'
 import { Avatar } from '../ui/Avatar.tsx'
@@ -11,6 +11,7 @@ import { GlobalSearch } from './GlobalSearch.tsx'
 const LABELS: Record<string, string> = {
   filas: 'Filas',
   reservas: 'Reservas',
+  espacos: 'Espaços',
   totens: 'Totens',
   cardapio: 'Cardápio',
 }

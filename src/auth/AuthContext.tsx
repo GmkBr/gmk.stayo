@@ -8,8 +8,8 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { setAccessTokenProvider, setUnauthorizedHandler } from '../api/client.ts'
-import * as api from '../api/index.ts'
+import { invalidateSession, setAccessTokenProvider, setUnauthorizedHandler } from '../api/client.ts'
+import * as identityApi from '../modules/identity/api.ts'
 
 const HOTEL_STORAGE_KEY = 'stayo.hotel'
 const AUTH_STORAGE_KEY = 'stayo.auth'
@@ -18,23 +18,24 @@ type StoredAuth = {
   accessToken: string
   refreshToken: string
   expiresAt: number
-  user: api.AuthUser
+  user: identityApi.AuthUser
 }
 
 type AuthContextValue = {
   ready: boolean
-  user: api.AuthUser | null
+  user: identityApi.AuthUser | null
   accessToken: string | null
   refreshToken: string | null
   usingDevToken: boolean
   signIn: (email: string, password: string) => Promise<void>
-  signUp: (input: api.RegisterInput) => Promise<void>
+  signUp: (input: identityApi.RegisterInput) => Promise<void>
   signOut: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 function readDevToken() {
+  if (!import.meta.env.DEV) return null
   const token = (import.meta.env.VITE_DEV_ACCESS_TOKEN as string | undefined)?.trim()
   return token || null
 }
@@ -71,8 +72,8 @@ function clearStoredAuth() {
   }
 }
 
-function sessionFromResponse(res: api.AuthSessionResponse): StoredAuth {
-  const user = api.mapAuthUser(res.user)
+function sessionFromResponse(res: identityApi.AuthSessionResponse): StoredAuth {
+  const user = identityApi.mapAuthUser(res.user)
   return {
     accessToken: res.accessToken,
     refreshToken: res.refreshToken,
@@ -86,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [stored, setStored] = useState<StoredAuth | null>(null)
   const devToken = readDevToken()
   const signingOutRef = useRef(false)
+  const sessionRevision = useRef(0)
 
   useEffect(() => {
     setStored(readStoredAuth())
@@ -99,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   setAccessTokenProvider(() => accessToken)
 
   const applySession = useCallback((session: StoredAuth) => {
+    sessionRevision.current += 1
     writeStoredAuth(session)
     setAccessTokenProvider(() => session.accessToken)
     setStored(session)
@@ -108,6 +111,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (signingOutRef.current) return
     signingOutRef.current = true
     try {
+      sessionRevision.current += 1
+      invalidateSession()
       clearHotelStorage()
       clearStoredAuth()
       setAccessTokenProvider(() => null)
@@ -117,24 +122,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const refreshSession = useCallback(async (): Promise<boolean> => {
+    const revision = sessionRevision.current
+    const current = readStoredAuth()
+    if (!current?.refreshToken) return false
+    try {
+      const res = await identityApi.refresh(current.refreshToken)
+      if (revision !== sessionRevision.current || readStoredAuth()?.refreshToken !== current.refreshToken) return false
+      applySession(sessionFromResponse(res))
+      return true
+    } catch {
+      return false
+    }
+  }, [applySession])
+
   useEffect(() => {
-    setUnauthorizedHandler(() => {
-      void signOut()
+    setUnauthorizedHandler(async () => {
+      const revision = sessionRevision.current
+      const refreshed = await refreshSession()
+      if (!refreshed && revision === sessionRevision.current) await signOut()
+      return refreshed
     })
     return () => setUnauthorizedHandler(null)
-  }, [signOut])
+  }, [refreshSession, signOut])
 
   const signIn = useCallback(
     async (email: string, password: string) => {
-      const res = await api.login({ email, password })
+      const revision = ++sessionRevision.current
+      invalidateSession()
+      const res = await identityApi.login({ email, password })
+      if (revision !== sessionRevision.current) return
       applySession(sessionFromResponse(res))
     },
     [applySession],
   )
 
   const signUp = useCallback(
-    async (input: api.RegisterInput) => {
-      const res = await api.register(input)
+    async (input: identityApi.RegisterInput) => {
+      const revision = ++sessionRevision.current
+      invalidateSession()
+      const res = await identityApi.register(input)
+      if (revision !== sessionRevision.current) return
       applySession(sessionFromResponse(res))
     },
     [applySession],

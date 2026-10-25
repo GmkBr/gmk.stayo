@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ChevronLeft, Minus, Plus } from 'lucide-react'
-import type { CatalogCategory, CatalogItem, HotelBrand, Service } from '../../types/index.ts'
+import type { CatalogCategory, CatalogItem, Service } from '../../modules/catalog/model.ts'
+import type { HotelBrand } from '../../modules/hotels/model.ts'
 import { Button } from '../ui/Button.tsx'
 import { formatBRLExact, greetingForNow } from '../../utils/format.ts'
 import {
@@ -17,6 +18,7 @@ import {
   type CartLine,
 } from '../../pages/totem/totemOrder.ts'
 import { TotemShell } from './TotemShell.tsx'
+import { useOrderSubmission } from '../../hooks/useOrderSubmission.ts'
 
 type Screen = 'home' | 'catalog' | 'cart' | 'done'
 
@@ -30,8 +32,10 @@ type Props = {
   items: CatalogItem[]
   services?: Service[]
   paymentNote?: string
-  onSubmit: (lines: CartLine[], notes: string) => void
+  onSubmit: (lines: CartLine[], notes: string) => Promise<void>
   onUnbind?: () => void
+  onChangeSpace?: () => void
+  changeSpaceLabel?: string
 }
 
 export function CatalogFlow({
@@ -46,17 +50,22 @@ export function CatalogFlow({
   paymentNote = 'O pagamento é feito no checkout do totem de recepção.',
   onSubmit,
   onUnbind,
+  onChangeSpace,
+  changeSpaceLabel,
 }: Props) {
   const [screen, setScreen] = useState<Screen>('home')
   const [categoryId, setCategoryId] = useState<string | null>(categories[0]?.id ?? null)
   const [cart, setCart] = useState<CartLine[]>([])
   const [notes, setNotes] = useState('')
   const [secondsLeft, setSecondsLeft] = useState(DONE_MS / 1000)
+  const submission = useOrderSubmission()
+  const resetSubmission = submission.reset
   const idleTimer = useRef<number | undefined>(undefined)
   const doneTimer = useRef<number | undefined>(undefined)
   const tickTimer = useRef<number | undefined>(undefined)
 
   const resetSession = useCallback(() => {
+    resetSubmission()
     window.clearTimeout(doneTimer.current)
     window.clearInterval(tickTimer.current)
     setScreen('home')
@@ -64,7 +73,7 @@ export function CatalogFlow({
     setNotes('')
     setSecondsLeft(DONE_MS / 1000)
     setCategoryId(categories[0]?.id ?? null)
-  }, [categories])
+  }, [categories, resetSubmission])
 
   const bumpIdle = useCallback(() => {
     window.clearTimeout(idleTimer.current)
@@ -102,9 +111,9 @@ export function CatalogFlow({
     bumpIdle()
   }
 
-  function confirmOrder() {
+  async function confirmOrder() {
     if (cart.length === 0) return
-    onSubmit(cart, notes.trim())
+    if (!await submission.run(() => onSubmit(cart, notes.trim()))) return
     setScreen('done')
     setSecondsLeft(DONE_MS / 1000)
     window.clearInterval(tickTimer.current)
@@ -127,15 +136,23 @@ export function CatalogFlow({
       </Button>
     ) : screen === 'cart' ? (
       <div className="flex flex-col gap-2">
-        <Button className={KIOSK_BTN} disabled={cart.length === 0} onClick={confirmOrder}>
-          Enviar pedido
+        <Button className={KIOSK_BTN} disabled={cart.length === 0 || submission.pending} onClick={confirmOrder}>
+          {submission.pending ? 'Enviando pedido…' : 'Enviar pedido'}
         </Button>
         <p className="text-center text-[12px] text-muted">{paymentNote}</p>
       </div>
     ) : undefined
 
   return (
-    <TotemShell brand={brand} title={title} contextLabel={contextLabel} onUnbind={onUnbind} footer={footer}>
+    <TotemShell
+      brand={brand}
+      title={title}
+      contextLabel={contextLabel}
+      onUnbind={onUnbind}
+      onChangeSpace={submission.pending ? undefined : onChangeSpace}
+      changeSpaceLabel={changeSpaceLabel}
+      footer={footer}
+    >
       {screen === 'home' && (
         <div className="flex flex-1 flex-col justify-center pb-8">
           <p className="text-[13px] font-medium text-muted">{greetingForNow()}</p>
@@ -247,6 +264,7 @@ export function CatalogFlow({
         <div className="flex flex-1 flex-col pb-4 pt-2">
           <button
             type="button"
+            disabled={submission.pending}
             onClick={() => setScreen('catalog')}
             className="mb-4 inline-flex min-h-11 items-center gap-1 text-[15px] font-medium"
             style={{ color: brand.primaryColor }}
@@ -256,6 +274,16 @@ export function CatalogFlow({
           </button>
 
           <h2 className="text-[22px] font-semibold tracking-[-0.03em]">Seu pedido</h2>
+          {submission.error && (
+            <div role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[15px] text-red-900">
+              <p>{submission.error}</p>
+              {submission.canReload && (
+                <button type="button" className="mt-2 min-h-11 font-medium underline" onClick={() => window.location.reload()}>
+                  Atualizar cardápio
+                </button>
+              )}
+            </div>
+          )}
 
           {cart.length === 0 ? (
             <p className="mt-4 text-[15px] text-muted">Nenhum item ainda.</p>
@@ -271,6 +299,7 @@ export function CatalogFlow({
                     <button
                       type="button"
                       aria-label="Remover um"
+                      disabled={submission.pending}
                       onClick={() => setCart((prev) => bumpCartLine(prev, line.key, -1))}
                       className="flex size-10 items-center justify-center rounded-lg bg-canvas"
                     >
@@ -280,6 +309,7 @@ export function CatalogFlow({
                     <button
                       type="button"
                       aria-label="Adicionar um"
+                      disabled={submission.pending}
                       onClick={() => setCart((prev) => bumpCartLine(prev, line.key, 1))}
                       className="flex size-10 items-center justify-center rounded-lg bg-canvas"
                     >
@@ -294,6 +324,7 @@ export function CatalogFlow({
           <div className="mt-6 rounded-2xl bg-white px-4 py-4">
             <p className="text-[13px] font-medium">Observações</p>
             <textarea
+              disabled={submission.pending}
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
               placeholder="Ex.: sem cebola, entregar após 19h"

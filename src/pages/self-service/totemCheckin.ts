@@ -1,4 +1,5 @@
-import type { Hotel, Reservation } from '../../types/index.ts'
+import type { Hotel } from '../../modules/hotels/model.ts'
+import type { Reservation } from '../../modules/reservations/model.ts'
 import { resolveHotelAssetUrl } from '../../lib/hotelAssets.ts'
 import { termsLinesFromText } from '../../components/hotels/hotelFormShared.ts'
 import { formatLongDate } from '../../utils/format.ts'
@@ -36,12 +37,17 @@ export function reservationMatchesQuery(reservation: Reservation, query: string)
   const q = foldText(query)
   if (!q) return false
   const name = foldText(reservation.guestName)
+  const code = foldText(reservation.code ?? '')
   const compactId = foldText(reservation.id).replace(/\s/g, '')
   const compactQuery = q.replace(/\s/g, '')
-  if (name.includes(q) || compactId.includes(compactQuery)) return true
+  if (name.includes(q) || code.includes(compactQuery)) return true
+  if (compactId.includes(compactQuery)) return true
   const queryDigits = digits(query)
   const idDigits = digits(reservation.id)
-  return queryDigits.length >= 4 && idDigits.endsWith(queryDigits)
+  if (queryDigits.length >= 4 && idDigits.endsWith(queryDigits)) return true
+  const cpfDigits = reservation.guestCpf?.replace(/\D/g, '') ?? ''
+  if (queryDigits.length >= 4 && cpfDigits.length >= 4 && cpfDigits.includes(queryDigits)) return true
+  return false
 }
 
 export function blockReason(reservation: Reservation, today = MOCK_TODAY): string | null {

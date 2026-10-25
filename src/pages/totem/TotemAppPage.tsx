@@ -2,7 +2,7 @@ import { SelfServicePage } from '../self-service/SelfServicePage.tsx'
 import { RoomTotemPage } from './RoomTotemPage.tsx'
 import { AreaTotemPage } from './AreaTotemPage.tsx'
 import { OperationTotemPage } from './OperationTotemPage.tsx'
-import { useApp } from '../../context/AppContext.tsx'
+import { useApp } from '../../app/useApp.ts'
 
 export function TotemAppPage() {
   const { profile } = useApp()

@@ -1,4 +1,5 @@
-import type { ReservationStatus, RoomStatus } from '../../types/index.ts'
+import type { ReservationStatus } from '../../modules/reservations/model.ts'
+import type { RoomStatus } from '../../modules/spaces/model.ts'
 import { Badge } from './Badge.tsx'
 
 const roomMap: Record<RoomStatus, { label: string; tone: 'green' | 'blue' | 'amber' | 'slate' | 'red' | 'neutral' }> = {

@@ -1,4 +1,4 @@
-import type { Activity } from '../../types/index.ts'
+import type { Activity } from '../../modules/activity/model.ts'
 
 export const mockActivities: Activity[] = [
   { id: 'ac-1', hotelId: 'aurora', time: '09:42', title: 'Check-in no totem', detail: 'João Silva — Quarto 203', kind: 'checkin' },

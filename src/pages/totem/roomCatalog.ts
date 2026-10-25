@@ -6,7 +6,7 @@ import {
   UtensilsCrossed,
   type LucideIcon,
 } from 'lucide-react'
-import type { CatalogCategory, CatalogItem } from '../../types/index.ts'
+import type { CatalogCategory, CatalogItem } from '../../modules/catalog/model.ts'
 
 export const ROOM_IDLE_MS = 180_000
 export const ROOM_PAYMENT_NOTE = 'Valor na conta do quarto. Paga no checkout da recepção.'

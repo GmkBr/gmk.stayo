@@ -1,4 +1,4 @@
-import type { Room, RoomStatus } from '../../types/index.ts'
+import type { Room, RoomStatus } from '../../modules/spaces/model.ts'
 
 type Seed = {
   number: string

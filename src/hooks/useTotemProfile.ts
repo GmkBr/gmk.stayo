@@ -1,5 +1,5 @@
-import { useApp } from '../context/AppContext.tsx'
-import type { TotemKind } from '../types/index.ts'
+import { useApp } from '../app/useApp.ts'
+import type { TotemKind } from '../modules/devices/model.ts'
 
 export function guestForRoom(
   reservations: { guestName: string; roomNumber: string; status: string }[],

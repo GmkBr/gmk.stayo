@@ -1,4 +1,4 @@
-import type { Totem } from '../../types/index.ts'
+import type { Totem } from '../../modules/devices/model.ts'
 
 export const mockTotems: Totem[] = [
   {

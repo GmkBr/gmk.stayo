@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Plus } from 'lucide-react'
-import { useApp } from '../../context/AppContext.tsx'
+import { useApp } from '../../app/useApp.ts'
 import { PageHeader } from '../../components/ui/PageHeader.tsx'
 import { Card } from '../../components/ui/Card.tsx'
 import { Button } from '../../components/ui/Button.tsx'
@@ -10,7 +10,7 @@ import { Input } from '../../components/ui/Input.tsx'
 import { Select } from '../../components/ui/Select.tsx'
 import { EmptyState } from '../../components/ui/EmptyState.tsx'
 import { TOTEM_EMAIL_DOMAIN, TOTEM_KIND_LABELS, totemEmail } from '../../lib/totemLogin.ts'
-import type { Totem, TotemKind } from '../../types/index.ts'
+import type { Totem, TotemKind } from '../../modules/devices/model.ts'
 
 const KIND_OPTIONS: { value: TotemKind; label: string }[] = [
   { value: 'reception', label: TOTEM_KIND_LABELS.reception },
@@ -23,7 +23,7 @@ const ALL_KINDS = 'all' as const
 type KindFilter = TotemKind | typeof ALL_KINDS
 
 export function TotemsPage() {
-  const { hotelTotems, hotelAreas, hotelRooms, addTotem, updateTotem, resetTotemPassword } = useApp()
+  const { hotelTotems, refreshing, addTotem, updateTotem, resetTotemPassword } = useApp()
 
   const [filter, setFilter] = useState<KindFilter>(ALL_KINDS)
   const [modalOpen, setModalOpen] = useState(false)
@@ -35,8 +35,6 @@ export function TotemsPage() {
     loginSuffix: '',
     password: '',
     name: '',
-    roomNumber: '',
-    areaId: '',
     active: true,
   })
 
@@ -52,8 +50,6 @@ export function TotemsPage() {
       loginSuffix: '',
       password: '',
       name: '',
-      roomNumber: kind === 'room' ? (hotelRooms[0]?.number ?? '') : '',
-      areaId: kind === 'area' ? (hotelAreas[0]?.id ?? '') : '',
       active: true,
     })
     setModalOpen(true)
@@ -66,8 +62,6 @@ export function TotemsPage() {
       loginSuffix: totem.loginId,
       password: '',
       name: totem.name,
-      roomNumber: totem.roomNumber ?? '',
-      areaId: totem.areaId ?? '',
       active: totem.active,
     })
     setModalOpen(true)
@@ -79,8 +73,6 @@ export function TotemsPage() {
       await updateTotem(editing.id, {
         name: draft.name.trim(),
         kind: draft.kind,
-        roomNumber: draft.kind === 'room' ? draft.roomNumber : undefined,
-        areaId: draft.kind === 'area' ? draft.areaId : undefined,
         active: draft.active,
       })
     } else {
@@ -90,8 +82,8 @@ export function TotemsPage() {
         kind: draft.kind,
         loginSuffix: draft.loginSuffix.trim(),
         password: draft.password,
-        roomNumber: draft.kind === 'room' ? draft.roomNumber : null,
-        areaId: draft.kind === 'area' ? draft.areaId : null,
+        roomNumber: null,
+        areaId: null,
       })
     }
     setModalOpen(false)
@@ -105,10 +97,10 @@ export function TotemsPage() {
   }
 
   function locationLabel(totem: Totem) {
-    if (totem.kind === 'room' && totem.roomNumber) return `Quarto ${totem.roomNumber}`
-    if (totem.kind === 'area' && totem.areaId) {
-      return hotelAreas.find((a) => a.id === totem.areaId)?.name ?? totem.name
-    }
+    if (totem.spaceId) return 'Totem dedicado (space no backend)'
+    if (totem.kind === 'room' && totem.roomNumber) return `Quarto ${totem.roomNumber} (legado)`
+    if (totem.kind === 'area' && totem.areaId) return 'Área fixa (legado)'
+    if (totem.kind === 'room' || totem.kind === 'area') return 'Compartilhado — setup no tablet'
     return TOTEM_KIND_LABELS[totem.kind]
   }
 
@@ -116,7 +108,7 @@ export function TotemsPage() {
     <div className="mx-auto flex max-w-[1200px] flex-col gap-8">
       <PageHeader
         title="Totens"
-        subtitle="Cadastre dispositivos com login e senha. Cada totem é um usuário do hotel — ao entrar, assume a interface do tipo definido."
+        subtitle="Cadastre dispositivos com login e senha. Totens de quarto e área são compartilhados — o tablet escolhe o espaço na primeira utilização."
         actions={
           <Button onClick={() => openCreate()}>
             <Plus size={16} />
@@ -124,6 +116,25 @@ export function TotemsPage() {
           </Button>
         }
       />
+
+      <div className="rounded-xl border border-line bg-canvas px-4 py-3 text-[13px] leading-relaxed text-muted">
+        <p className="font-medium text-ink">Totem de quarto — acesso da equipe</p>
+        <p className="mt-1">
+          No tablet, <strong className="font-medium text-ink">mantenha pressionado o nome do hotel no topo da tela por 5 segundos</strong>{' '}
+          — sem feedback visual e sem ícone de configuração, de propósito, para o hóspede não descobrir. Então
+          aparecem <strong className="font-medium text-ink">Trocar quarto</strong> e{' '}
+          <strong className="font-medium text-ink">Sair</strong>.
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-line bg-canvas px-4 py-3 text-[13px] leading-relaxed text-muted">
+        <p className="font-medium text-ink">Totem de operação — cozinha / preparo</p>
+        <p className="mt-1">
+          Um login compartilhado por hotel (<strong className="font-medium text-ink">kind=operation</strong>). No tablet: abas{' '}
+          <strong className="font-medium text-ink">Pedidos</strong> (fila dos totens de quarto e área) e{' '}
+          <strong className="font-medium text-ink">Cardápio</strong> (itens e serviços). Sair: long-press 5 s no nome do hotel no topo.
+        </p>
+      </div>
 
       <div className="flex flex-wrap gap-2">
         <FilterChip active={filter === ALL_KINDS} onClick={() => setFilter(ALL_KINDS)}>
@@ -140,7 +151,9 @@ export function TotemsPage() {
       </div>
 
       <Card>
-        {filtered.length === 0 ? (
+        {refreshing && hotelTotems.length === 0 ? (
+          <p className="py-8 text-center text-[13px] text-muted">Carregando totens…</p>
+        ) : filtered.length === 0 ? (
           <EmptyState
             title="Nenhum totem cadastrado"
             description="Crie um totem com login e senha para o tablet usar na recepção, quarto, área ou operação."
@@ -192,12 +205,7 @@ export function TotemsPage() {
             value={draft.kind}
             onChange={(e) => {
               const kind = e.target.value as TotemKind
-              setDraft((prev) => ({
-                ...prev,
-                kind,
-                roomNumber: kind === 'room' ? (hotelRooms[0]?.number ?? '') : '',
-                areaId: kind === 'area' ? (hotelAreas[0]?.id ?? '') : '',
-              }))
+              setDraft((prev) => ({ ...prev, kind }))
             }}
             options={KIND_OPTIONS}
             disabled={Boolean(editing)}
@@ -233,27 +241,19 @@ export function TotemsPage() {
             <Input
               label="Senha"
               type="password"
+              passwordToggle
               value={draft.password}
               onChange={(e) => setDraft((prev) => ({ ...prev, password: e.target.value }))}
               minLength={6}
               hint="Senha usada no tablet para entrar."
             />
           )}
-          {draft.kind === 'room' && (
-            <Select
-              label="Quarto"
-              value={draft.roomNumber}
-              onChange={(e) => setDraft((prev) => ({ ...prev, roomNumber: e.target.value }))}
-              options={hotelRooms.map((room) => ({ value: room.number, label: `Quarto ${room.number}` }))}
-            />
-          )}
-          {draft.kind === 'area' && (
-            <Select
-              label="Área"
-              value={draft.areaId}
-              onChange={(e) => setDraft((prev) => ({ ...prev, areaId: e.target.value }))}
-              options={hotelAreas.map((area) => ({ value: area.id, label: area.name }))}
-            />
+          {(draft.kind === 'room' || draft.kind === 'area') && !editing && (
+            <p className="rounded-xl bg-canvas px-3 py-2 text-[12px] leading-relaxed text-muted">
+              Totens de {draft.kind === 'room' ? 'quarto' : 'área'} são compartilhados. Cadastre os espaços em{' '}
+              <strong className="font-medium text-ink">Espaços</strong> e, no tablet, escolha onde o dispositivo está
+              instalado.
+            </p>
           )}
           <label className="flex items-center gap-2 text-[13px]">
             <input

@@ -1,6 +1,6 @@
 import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthContext.tsx'
-import { AppProvider } from './context/AppContext.tsx'
+import { AppProvider } from './app/AppProvider.tsx'
 import { ToastProvider } from './components/ui/Toast.tsx'
 import { AppRoutes } from './routes/index.tsx'
 

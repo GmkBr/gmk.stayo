@@ -1,9 +1,15 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Plus } from 'lucide-react'
-import { useApp } from '../../context/AppContext.tsx'
+import { useApp } from '../../app/useApp.ts'
 import { useToast } from '../../components/ui/Toast.tsx'
 import { usePageLoading } from '../../hooks/usePageLoading.ts'
 import { formatBRL, formatShortDate } from '../../utils/format.ts'
+import { formatCpf } from '../../lib/totemSearch.ts'
+import {
+  formatReservationTotal,
+  optionalContact,
+  paymentLabel,
+} from '../../lib/reservationDisplay.ts'
 import { PageHeader } from '../../components/ui/PageHeader.tsx'
 import { Button } from '../../components/ui/Button.tsx'
 import { Card } from '../../components/ui/Card.tsx'
@@ -17,7 +23,8 @@ import { TableSkeleton } from '../../components/ui/Skeleton.tsx'
 import { Modal } from '../../components/ui/Modal.tsx'
 import { Input } from '../../components/ui/Input.tsx'
 import { DatePicker } from '../../components/ui/DatePicker.tsx'
-import type { PaymentMethod, Reservation, ReservationStatus } from '../../types/index.ts'
+import type { PaymentMethod } from '../../shared/model.ts'
+import type { Reservation, ReservationStatus } from '../../modules/reservations/model.ts'
 import { ApiError } from '../../api/client.ts'
 
 const STATUS_FILTER = [
@@ -62,7 +69,12 @@ export function ReservationsPage() {
     const today = todayIso()
     return hotelReservations.filter((item) => {
       const q = query.trim().toLowerCase()
-      const matchQ = !q || `${item.guestName} ${item.roomNumber}`.toLowerCase().includes(q)
+      const cpfDigits = item.guestCpf?.replace(/\D/g, '') ?? ''
+      const queryDigits = query.replace(/\D/g, '')
+      const matchQ =
+        !q ||
+        `${item.guestName} ${item.roomNumber} ${item.guestCpf ?? ''} ${item.code ?? ''}`.toLowerCase().includes(q) ||
+        (queryDigits.length >= 4 && cpfDigits.includes(queryDigits))
       const matchS = status === 'all' || item.status === status
       const matchP =
         period === 'all' ||
@@ -102,7 +114,7 @@ export function ReservationsPage() {
 
       <Card className="flex flex-col gap-4 p-4 sm:flex-row sm:items-end">
         <div className="min-w-0 flex-1">
-          <SearchInput value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nome ou quarto" />
+          <SearchInput value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nome, código, quarto ou CPF" />
         </div>
         <div className="grid grid-cols-2 gap-3 sm:w-[360px]">
           <Select options={STATUS_FILTER} value={status} onChange={(e) => setStatus(e.target.value)} />
@@ -123,7 +135,11 @@ export function ReservationsPage() {
                   <Avatar name={row.guestName} size="sm" />
                   <div>
                     <p className="font-medium">{row.guestName}</p>
-                    <p className="text-[12px] text-muted">{row.guestEmail}</p>
+                    {row.code ? (
+                      <p className="text-[12px] text-muted">{row.code}</p>
+                    ) : (
+                      row.guestEmail && <p className="text-[12px] text-muted">{row.guestEmail}</p>
+                    )}
                   </div>
                 </div>
               ),
@@ -134,7 +150,7 @@ export function ReservationsPage() {
               header: 'Estadia',
               render: (row) => `${formatShortDate(row.checkIn)} – ${formatShortDate(row.checkOut)}`,
             },
-            { key: 'total', header: 'Valor', render: (row) => formatBRL(row.total) },
+            { key: 'total', header: 'Valor', render: (row) => formatReservationTotal(row) },
             {
               key: 'status',
               header: 'Status',
@@ -151,7 +167,11 @@ export function ReservationsPage() {
         open={Boolean(selected)}
         onClose={() => setSelected(null)}
         title={selected?.guestName ?? 'Reserva'}
-        subtitle={selected ? `Quarto ${selected.roomNumber}` : undefined}
+        subtitle={
+          selected
+            ? `Quarto ${selected.roomNumber}${selected.code ? ` · ${selected.code}` : ''}`
+            : undefined
+        }
         footer={
           selected && (
             <div className="flex gap-2">
@@ -176,15 +196,20 @@ export function ReservationsPage() {
         {selected && (
           <div className="flex flex-col gap-5 text-[13px]">
             <section className="grid grid-cols-2 gap-3">
-              <Field label="Contato" value={selected.guestEmail} />
-              <Field label="Telefone" value={selected.guestPhone} />
+              {selected.code && <Field label="Código" value={selected.code} />}
+              <Field label="Contato" value={optionalContact(selected.guestEmail)} />
+              <Field label="Telefone" value={optionalContact(selected.guestPhone)} />
+              {selected.guestCpf && <Field label="CPF" value={formatCpf(selected.guestCpf)} />}
               <Field
                 label="Datas"
                 value={`${formatShortDate(selected.checkIn)} – ${formatShortDate(selected.checkOut)}`}
               />
               <Field label="Hóspedes" value={String(selected.guests)} />
-              <Field label="Valor" value={formatBRL(selected.total)} />
-              <Field label="Pagamento" value={selected.paymentMethod.toUpperCase()} />
+              {selected.nightlyRate != null && selected.nightlyRate > 0 && (
+                <Field label="Diária" value={formatBRL(selected.nightlyRate)} />
+              )}
+              <Field label="Valor total" value={formatReservationTotal(selected, true)} />
+              <Field label="Pagamento" value={paymentLabel(selected.paymentMethod)} />
               <Field label="Status" value={<ReservationStatusBadge status={selected.status} />} />
             </section>
             {selected.notes && (
@@ -195,14 +220,18 @@ export function ReservationsPage() {
             )}
             <section>
               <p className="mb-2 text-[12px] text-muted">Histórico</p>
-              <ul className="flex flex-col gap-2">
-                {selected.history.map((item) => (
-                  <li key={`${item.at}-${item.text}`} className="rounded-lg bg-canvas px-3 py-2">
-                    <p className="text-[12px] text-muted">{item.at}</p>
-                    <p>{item.text}</p>
-                  </li>
-                ))}
-              </ul>
+              {selected.history.length === 0 ? (
+                <p className="rounded-lg bg-canvas px-3 py-2 text-[13px] text-muted">Nenhum evento registrado.</p>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {selected.history.map((item) => (
+                    <li key={`${item.at}-${item.text}`} className="rounded-lg bg-canvas px-3 py-2">
+                      <p className="text-[12px] text-muted">{item.at}</p>
+                      <p>{item.text}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </section>
           </div>
         )}

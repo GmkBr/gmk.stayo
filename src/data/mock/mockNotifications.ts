@@ -1,4 +1,4 @@
-import type { AppNotification } from '../../types/index.ts'
+import type { AppNotification } from '../../types/legacy.ts'
 
 export const mockNotifications: AppNotification[] = [
   { id: 'n-1', hotelId: 'aurora', title: 'Check-in no totem', detail: 'João Silva — Quarto 203.', time: 'há 4 min', unread: true },

@@ -7,6 +7,7 @@ import { QueuesPage } from '../pages/queues/QueuesPage.tsx'
 import { ReservationsPage } from '../pages/reservations/ReservationsPage.tsx'
 import { TotemAppPage } from '../pages/totem/TotemAppPage.tsx'
 import { TotemsPage } from '../pages/totems/TotemsPage.tsx'
+import { SpacesPage } from '../pages/spaces/SpacesPage.tsx'
 import { CatalogPage } from '../pages/catalog/CatalogPage.tsx'
 import { DocsPage } from '../pages/docs/DocsPage.tsx'
 import { LoginPage } from '../pages/auth/LoginPage.tsx'
@@ -55,6 +56,7 @@ export function AppRoutes() {
       >
         <Route path="/filas" element={<QueuesPage />} />
         <Route path="/reservas" element={<ReservationsPage />} />
+        <Route path="/espacos" element={<SpacesPage />} />
         <Route path="/totens" element={<TotemsPage />} />
         <Route path="/cardapio" element={<CatalogPage />} />
       </Route>

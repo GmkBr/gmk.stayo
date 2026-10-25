@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CalendarCheck, Search } from 'lucide-react'
 import { Modal } from '../ui/Modal.tsx'
-import { useApp } from '../../context/AppContext.tsx'
+import { useApp } from '../../app/useApp.ts'
 
 type Props = { open: boolean; onClose: () => void }
 

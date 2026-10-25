@@ -1,4 +1,4 @@
-import type { Hotel } from '../../types/index.ts'
+import type { Hotel } from '../../modules/hotels/model.ts'
 
 /** Seed visual legado — a app usa hotels da API. */
 export const mockHotels: Hotel[] = [

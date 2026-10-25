@@ -1,4 +1,4 @@
-import type { Service } from '../../types/index.ts'
+import type { Service } from '../../modules/catalog/model.ts'
 
 export const mockServices: Service[] = [
   { id: 'sv-1', hotelId: 'aurora', name: 'Room Service', description: 'Cardápio do restaurante servido no quarto, das 7h às 23h.', price: 89, active: true, tone: '#efe7d8', icon: 'tray' },

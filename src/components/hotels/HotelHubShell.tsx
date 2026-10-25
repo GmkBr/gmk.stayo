@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, LogOut } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext.tsx'
-import { useApp } from '../../context/AppContext.tsx'
+import { useApp } from '../../app/useApp.ts'
 import { StayoLogo } from '../brand/StayoLogo.tsx'
 import { Button } from '../ui/Button.tsx'
 

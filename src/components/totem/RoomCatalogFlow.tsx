@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Check, ChevronDown, ChevronLeft, ChevronUp, Minus, Plus, ShoppingBag, type LucideIcon } from 'lucide-react'
-import type { CatalogCategory, CatalogItem, HotelBrand, Order, Service } from '../../types/index.ts'
+import type { CatalogCategory, CatalogItem, Service } from '../../modules/catalog/model.ts'
+import type { HotelBrand } from '../../modules/hotels/model.ts'
+import type { Order } from '../../modules/orders/model.ts'
+import type { StayAccount } from '../../modules/stays/model.ts'
 import { Button } from '../ui/Button.tsx'
 import { formatBRLExact, firstName, greetingForNow } from '../../utils/format.ts'
 import {
@@ -11,6 +14,7 @@ import {
   cartTotal,
   catalogAsCartLine,
   mergeCartLine,
+  ordersNewestFirst,
   serviceAsCartLine,
   toOrderLines,
   type CartLine,
@@ -27,6 +31,7 @@ import {
   type RoomShortcut,
 } from '../../pages/totem/roomCatalog.ts'
 import { TotemShell } from './TotemShell.tsx'
+import { useOrderSubmission } from '../../hooks/useOrderSubmission.ts'
 
 type Screen = 'home' | 'catalog' | 'orders' | 'done'
 
@@ -39,7 +44,12 @@ type Props = {
   items: CatalogItem[]
   services?: Service[]
   orders?: Order[]
-  onSubmit: (lines: CartLine[], notes: string) => void
+  stayAccount?: StayAccount | null
+  orderingBlocked?: boolean
+  onSubmit: (lines: CartLine[], notes: string) => Promise<void>
+  onChangeSpace?: () => void
+  onStaffSignOut?: () => void
+  changeSpaceLabel?: string
 }
 
 export function RoomCatalogFlow({
@@ -51,7 +61,12 @@ export function RoomCatalogFlow({
   items,
   services = [],
   orders = [],
+  stayAccount = null,
+  orderingBlocked = false,
   onSubmit,
+  onChangeSpace,
+  onStaffSignOut,
+  changeSpaceLabel = 'Trocar quarto',
 }: Props) {
   const [screen, setScreen] = useState<Screen>('home')
   const [categoryId, setCategoryId] = useState<string | null>(categories[0]?.id ?? null)
@@ -61,6 +76,8 @@ export function RoomCatalogFlow({
   const [notes, setNotes] = useState('')
   const [toast, setToast] = useState<string | null>(null)
   const [secondsLeft, setSecondsLeft] = useState(DONE_MS / 1000)
+  const submission = useOrderSubmission()
+  const resetSubmission = submission.reset
   const idleTimer = useRef<number | undefined>(undefined)
   const doneTimer = useRef<number | undefined>(undefined)
   const tickTimer = useRef<number | undefined>(undefined)
@@ -71,6 +88,7 @@ export function RoomCatalogFlow({
   const total = cartTotal(cart)
 
   const resetSession = useCallback(() => {
+    resetSubmission()
     window.clearTimeout(doneTimer.current)
     window.clearInterval(tickTimer.current)
     setScreen('home')
@@ -80,7 +98,7 @@ export function RoomCatalogFlow({
     setCartExpanded(false)
     setSecondsLeft(DONE_MS / 1000)
     setCategoryId(categories[0]?.id ?? null)
-  }, [categories])
+  }, [categories, resetSubmission])
 
   const bumpIdle = useCallback(() => {
     window.clearTimeout(idleTimer.current)
@@ -148,10 +166,14 @@ export function RoomCatalogFlow({
     bumpIdle()
   }
 
-  function confirmOrder() {
+  async function confirmOrder() {
     if (cart.length === 0) return
+    if (orderingBlocked) {
+      flashToast('Faça check-in na recepção para pedir pelo quarto.')
+      return
+    }
+    if (!await submission.run(() => onSubmit(cart, notes.trim()))) return
     setCartExpanded(false)
-    onSubmit(cart, notes.trim())
     setScreen('done')
     setSecondsLeft(DONE_MS / 1000)
     window.clearInterval(tickTimer.current)
@@ -166,10 +188,28 @@ export function RoomCatalogFlow({
   const categoryItems = categoryId ? items.filter((item) => item.categoryId === categoryId) : []
   const showCartDock = count > 0 && screen !== 'done'
   const activeOrders = orders.filter((item) => item.status === 'open' || item.status === 'preparing')
-  const sortedOrders = [...orders].sort((a, b) => b.time.localeCompare(a.time))
+  const sortedOrders = ordersNewestFirst(orders)
 
   return (
-    <TotemShell brand={brand} title={title} contextLabel={`Quarto ${roomNumber}`} guestMode>
+    <TotemShell
+      brand={brand}
+      title={title}
+      contextLabel={`Quarto ${roomNumber}`}
+      guestMode
+      staffConfig={
+        onChangeSpace
+          ? {
+              holdMs: 5000,
+              actions: [
+                { label: changeSpaceLabel, onClick: onChangeSpace },
+                ...(onStaffSignOut
+                  ? [{ label: 'Sair', onClick: onStaffSignOut, variant: 'danger' as const }]
+                  : []),
+              ],
+            }
+          : undefined
+      }
+    >
       {toast && (
         <div
           className="room-totem-toast fixed left-1/2 top-[max(4.5rem,env(safe-area-inset-top))] z-20 -translate-x-1/2"
@@ -192,7 +232,40 @@ export function RoomCatalogFlow({
             <p className="mx-auto mt-2 max-w-sm text-[14px] leading-relaxed text-muted">
               Peça no quarto. {ROOM_PAYMENT_NOTE}
             </p>
+            {orderingBlocked && (
+              <p className="mx-auto mt-3 max-w-sm rounded-xl bg-amber-50 px-4 py-3 text-[13px] leading-relaxed text-amber-900">
+                Não há estadia ativa neste quarto. O hóspede precisa fazer check-in na recepção antes de pedir.
+              </p>
+            )}
           </div>
+
+          {stayAccount && (
+            <section className="mb-6 rounded-2xl bg-white p-4 shadow-soft">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[13px] font-medium text-muted">Conta do quarto</p>
+                  <p className="mt-1 text-[22px] font-semibold tracking-[-0.03em] tabular-nums">
+                    {formatBRLExact(stayAccount.billableTotal)}
+                  </p>
+                </div>
+                <span
+                  className="rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide"
+                  style={{
+                    background: `color-mix(in srgb, ${brand.primaryColor} 12%, white)`,
+                    color: brand.primaryColor,
+                  }}
+                >
+                  Ativa
+                </span>
+              </div>
+              {stayAccount.pendingOrdersTotal > 0 && (
+                <p className="mt-2 text-[12px] leading-relaxed text-muted">
+                  + {formatBRLExact(stayAccount.pendingOrdersTotal)} em pedidos ainda em preparo (não entram no total até
+                  a entrega).
+                </p>
+              )}
+            </section>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             {ROOM_SHORTCUTS.map((shortcut) => {
@@ -400,6 +473,9 @@ export function RoomCatalogFlow({
           total={total}
           notes={notes}
           expanded={cartExpanded}
+          submitting={submission.pending}
+          error={submission.error}
+          canReload={submission.canReload}
           onToggle={() => setCartExpanded((prev) => !prev)}
           onClose={() => setCartExpanded(false)}
           onNotesChange={setNotes}
@@ -665,6 +741,9 @@ function RoomCartDock({
   onNotesChange,
   onBumpLine,
   onConfirm,
+  submitting,
+  error,
+  canReload,
 }: {
   brand: HotelBrand
   cart: CartLine[]
@@ -677,6 +756,9 @@ function RoomCartDock({
   onNotesChange: (value: string) => void
   onBumpLine: (key: string, delta: number) => void
   onConfirm: () => void
+  submitting: boolean
+  error: string
+  canReload: boolean
 }) {
   return (
     <div className="room-cart-dock pointer-events-none fixed inset-x-0 bottom-0 z-40 mx-auto max-w-xl">
@@ -684,6 +766,7 @@ function RoomCartDock({
         <button
           type="button"
           aria-label="Fechar pedido"
+          disabled={submitting}
           className="room-cart-backdrop pointer-events-auto fixed inset-0 bg-ink/30"
           onClick={onClose}
         />
@@ -704,6 +787,7 @@ function RoomCartDock({
                 onClick={onClose}
                 className="flex size-10 items-center justify-center rounded-full bg-canvas text-muted"
                 aria-label="Continuar comprando"
+                disabled={submitting}
               >
                 <ChevronDown size={20} />
               </button>
@@ -724,6 +808,7 @@ function RoomCartDock({
                       <button
                         type="button"
                         aria-label="Remover um"
+                        disabled={submitting}
                         onClick={() => onBumpLine(line.key, -1)}
                         className="flex size-10 items-center justify-center rounded-lg bg-white"
                       >
@@ -733,6 +818,7 @@ function RoomCartDock({
                       <button
                         type="button"
                         aria-label="Adicionar um"
+                        disabled={submitting}
                         onClick={() => onBumpLine(line.key, 1)}
                         className="flex size-10 items-center justify-center rounded-lg bg-white"
                       >
@@ -746,6 +832,7 @@ function RoomCartDock({
               <div className="mt-4 rounded-2xl bg-canvas px-4 py-4">
                 <p className="text-[13px] font-medium">Observações</p>
                 <textarea
+                  disabled={submitting}
                   value={notes}
                   onChange={(event) => onNotesChange(event.target.value)}
                   placeholder="Ex.: sem cebola, entregar após 19h"
@@ -761,8 +848,18 @@ function RoomCartDock({
             </div>
 
             <div className="shrink-0 border-t border-line px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-              <Button className={KIOSK_BTN} onClick={onConfirm}>
-                Enviar pedido
+              {error && (
+                <div role="alert" className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[14px] text-red-900">
+                  <p>{error}</p>
+                  {canReload && (
+                    <button type="button" className="mt-2 min-h-11 font-medium underline" onClick={() => window.location.reload()}>
+                      Atualizar cardápio
+                    </button>
+                  )}
+                </div>
+              )}
+              <Button className={KIOSK_BTN} disabled={submitting} onClick={onConfirm}>
+                {submitting ? 'Enviando pedido…' : 'Enviar pedido'}
               </Button>
               <p className="mt-2 text-center text-[12px] text-muted">{ROOM_PAYMENT_NOTE}</p>
             </div>

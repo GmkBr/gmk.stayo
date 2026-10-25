@@ -1,4 +1,5 @@
-import type { Hotel, HotelBrand, TotemProfile } from '../types/index.ts'
+import type { Hotel, HotelBrand } from '../modules/hotels/model.ts'
+import type { TotemProfile } from '../modules/devices/model.ts'
 import { normalizeTotemBrand } from './totemBrand.ts'
 
 const DEFAULT_BRAND: HotelBrand = {

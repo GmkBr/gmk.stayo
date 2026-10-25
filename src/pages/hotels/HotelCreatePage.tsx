@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Building2, Check, FileText, Palette } from 'lucide-react'
-import { useApp } from '../../context/AppContext.tsx'
+import { useApp } from '../../app/useApp.ts'
 import { HotelBrandPreview } from '../../components/hotels/HotelBrandPreview.tsx'
 import { HotelHubShell } from '../../components/hotels/HotelHubShell.tsx'
 import {
@@ -394,7 +394,7 @@ export function HotelCreatePage() {
             <div>
               <h2 className="text-[18px] font-semibold tracking-[-0.03em]">Identidade visual</h2>
               <p className="mt-1 text-[13px] text-muted">
-                Cores e nome da marca nos totens. O tom da capa altera o gradiente do preview ao lado.
+                Cores e nome da marca nos totens. À direita, exemplos de uso real no check-in.
               </p>
             </div>
 
@@ -411,7 +411,7 @@ export function HotelCreatePage() {
                   options={COVER_TONES}
                   value={draft.coverTone}
                   onChange={(e) => patch({ coverTone: e.target.value })}
-                  hint="Frio, quente ou neutro — veja a mudança no preview."
+                  hint="Metadado de identidade — reservado para capas futuras."
                 />
                 <div className="grid gap-3 sm:grid-cols-3">
                   <ColorField

@@ -1,4 +1,4 @@
-import type { CatalogCategory, CatalogItem } from '../../types/index.ts'
+import type { CatalogCategory, CatalogItem } from '../../modules/catalog/model.ts'
 
 export const mockCatalogCategories: CatalogCategory[] = [
   { id: 'cat-rs', hotelId: 'aurora', name: 'Alimentos', context: 'room', sortOrder: 1 },

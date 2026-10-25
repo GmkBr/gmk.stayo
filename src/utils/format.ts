@@ -16,20 +16,34 @@ export function formatBRLExact(value: number) {
 }
 
 export function parseISODate(iso: string) {
-  return new Date(`${iso}T12:00:00`)
+  const trimmed = iso?.trim() ?? ''
+  if (!trimmed) return new Date(Number.NaN)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return new Date(`${trimmed}T12:00:00`)
+  }
+  const parsed = new Date(trimmed)
+  if (!Number.isNaN(parsed.getTime())) return parsed
+  const datePart = trimmed.slice(0, 10)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+    return new Date(`${datePart}T12:00:00`)
+  }
+  return new Date(Number.NaN)
 }
 
 export function formatShortDate(iso: string) {
   const d = parseISODate(iso)
+  if (Number.isNaN(d.getTime())) return '—'
   return `${d.getDate()} ${MONTHS[d.getMonth()]}`
 }
 
 export function formatLongDate(iso: string) {
+  const d = parseISODate(iso)
+  if (Number.isNaN(d.getTime())) return '—'
   return new Intl.DateTimeFormat('pt-BR', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
-  }).format(parseISODate(iso))
+  }).format(d)
 }
 
 export function formatPercent(value: number, digits = 1) {

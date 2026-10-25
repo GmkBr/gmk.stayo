@@ -1,4 +1,4 @@
-import type { ConsumptionItem, Guest, GuestRequest, StayRecord } from '../../types/index.ts'
+import type { ConsumptionItem, Guest, GuestRequest, StayRecord } from '../../types/legacy.ts'
 
 export const mockGuests: Guest[] = [
   { id: 'g-joao', hotelId: 'aurora', name: 'João Silva', email: 'joao.silva@email.com', phone: '(21) 98812-4402', document: '412.889.221-90', nationality: 'Brasil', status: 'staying', lastStay: '2026-08-14', stays: 4, preferences: ['Travesseiro extra', 'Andar alto', 'Café da manhã no quarto'], notes: 'Aniversário no sábado. Gosta de trilhas ao amanhecer.', vip: true },

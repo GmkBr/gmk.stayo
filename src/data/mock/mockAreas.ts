@@ -1,4 +1,4 @@
-import type { HotelArea } from '../../types/index.ts'
+import type { HotelArea } from '../../modules/catalog/model.ts'
 
 export const mockAreas: HotelArea[] = [
   { id: 'ar-rst', hotelId: 'aurora', name: 'Restaurante', active: true },

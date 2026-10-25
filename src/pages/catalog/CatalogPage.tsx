@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
-import { useApp } from '../../context/AppContext.tsx'
+import { useApp } from '../../app/useApp.ts'
 import { PageHeader } from '../../components/ui/PageHeader.tsx'
 import { Card } from '../../components/ui/Card.tsx'
 import { Tabs } from '../../components/ui/Tabs.tsx'
@@ -11,7 +11,7 @@ import { Input } from '../../components/ui/Input.tsx'
 import { Select } from '../../components/ui/Select.tsx'
 import { EmptyState } from '../../components/ui/EmptyState.tsx'
 import { formatBRLExact } from '../../utils/format.ts'
-import type { CatalogCategory, CatalogContext, CatalogItem } from '../../types/index.ts'
+import type { CatalogCategory, CatalogContext, CatalogItem } from '../../modules/catalog/model.ts'
 
 type TabId = 'itens' | 'servicos' | 'areas'
 
@@ -22,6 +22,7 @@ export function CatalogPage() {
     hotelCatalogItems,
     hotelServices,
     hotelAreas,
+    hotelSpaces,
     toggleService,
     addCatalogCategory,
     updateCatalogCategory,
@@ -30,6 +31,11 @@ export function CatalogPage() {
     addArea,
     updateArea,
   } = useApp()
+
+  const catalogAreaSpaces = useMemo(
+    () => hotelSpaces.filter((space) => space.type === 'area'),
+    [hotelSpaces],
+  )
 
   const [tab, setTab] = useState<TabId>('itens')
   const [itemModal, setItemModal] = useState(false)
@@ -49,7 +55,7 @@ export function CatalogPage() {
   const [categoryDraft, setCategoryDraft] = useState({
     name: '',
     context: 'room' as CatalogContext,
-    areaId: hotelAreas[0]?.id ?? '',
+    areaId: catalogAreaSpaces[0]?.id ?? '',
     sortOrder: '1',
   })
 
@@ -99,7 +105,7 @@ export function CatalogPage() {
     setCategoryDraft({
       name: '',
       context: tab === 'itens' ? 'room' : 'area',
-      areaId: hotelAreas[0]?.id ?? '',
+      areaId: catalogAreaSpaces[0]?.id ?? '',
       sortOrder: String(hotelCatalogCategories.length + 1),
     })
     setCategoryModal(true)
@@ -340,7 +346,7 @@ export function CatalogPage() {
               label="Área"
               value={categoryDraft.areaId}
               onChange={(e) => setCategoryDraft((p) => ({ ...p, areaId: e.target.value }))}
-              options={hotelAreas.map((area) => ({ value: area.id, label: area.name }))}
+              options={catalogAreaSpaces.map((area) => ({ value: area.id, label: area.name }))}
             />
           )}
         </div>

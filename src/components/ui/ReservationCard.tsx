@@ -1,5 +1,6 @@
-import type { Reservation } from '../../types/index.ts'
-import { formatBRL, formatShortDate } from '../../utils/format.ts'
+import type { Reservation } from '../../modules/reservations/model.ts'
+import { formatShortDate } from '../../utils/format.ts'
+import { formatReservationTotal } from '../../lib/reservationDisplay.ts'
 import { Avatar } from './Avatar.tsx'
 import { ReservationStatusBadge } from './StatusBadge.tsx'
 
@@ -10,6 +11,10 @@ export function ReservationCard({
   reservation: Reservation
   onClick?: () => void
 }) {
+  const meta = reservation.code
+    ? `${reservation.code} · Quarto ${reservation.roomNumber}`
+    : `Quarto ${reservation.roomNumber}`
+
   return (
     <button
       type="button"
@@ -20,12 +25,12 @@ export function ReservationCard({
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] font-semibold">{reservation.guestName}</p>
         <p className="truncate text-[12px] text-muted">
-          Quarto {reservation.roomNumber} · {formatShortDate(reservation.checkIn)} – {formatShortDate(reservation.checkOut)}
+          {meta} · {formatShortDate(reservation.checkIn)} – {formatShortDate(reservation.checkOut)}
         </p>
       </div>
       <div className="flex flex-col items-end gap-1">
         <ReservationStatusBadge status={reservation.status} />
-        <span className="text-[12px] text-muted">{formatBRL(reservation.total)}</span>
+        <span className="text-[12px] text-muted">{formatReservationTotal(reservation)}</span>
       </div>
     </button>
   )

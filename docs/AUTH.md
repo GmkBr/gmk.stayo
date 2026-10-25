@@ -75,6 +75,8 @@ Para operadores: `accountType: "human"` (ou omitido → human) e sem `totem`.
 - `/totem` → interface pelo `kind`
 - Tema (brand) vem em `user.totem.brand` no login, refresh e `GET /me` — **sem** `GET /hotels/{id}`
 - FE monta o contexto do hotel localmente a partir de `totem.brand` + `totem.hotelId`
+- **room / area** com `totem.spaceId: null`: setup no tablet (`GET /spaces`), binding em `localStorage` (`stayo.totem.space`); pedidos mandam `spaceId` no body
+- **room / area** dedicado (`spaceId` no `/me`): pula setup; contexto fixo no backend
 
 ## Frontend — proteção de rotas
 
@@ -84,7 +86,8 @@ Para operadores: `accountType: "human"` (ou omitido → human) e sem `totem`.
 | `RequireConsole` | `/hoteis`, `/filas`, `/reservas`, `/totens`, `/cardapio` | human |
 | `RequireTotem` | `/totem` | totem |
 
-- `401` em qualquer JWT → `signOut` + `/login`
+- `401` com JWT da sessão → renovação compartilhada entre chamadas concorrentes e uma repetição da requisição. Se a renovação falhar, `signOut` + `/login`. Login público e tokens explícitos não acionam essa recuperação.
+- Logout/troca de conta invalidam requests anteriores; um refresh atrasado não restaura a sessão encerrada.
 - `signOut` limpa `stayo.auth` e `stayo.hotel`
 
 ## Frontend — `.env`

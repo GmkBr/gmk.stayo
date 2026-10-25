@@ -1,9 +1,9 @@
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Building2, MapPin, Plus, Settings } from 'lucide-react'
-import { useApp } from '../../context/AppContext.tsx'
+import { useApp } from '../../app/useApp.ts'
 import { HotelHubShell } from '../../components/hotels/HotelHubShell.tsx'
 import { Button } from '../../components/ui/Button.tsx'
-import type { Hotel } from '../../types/index.ts'
+import type { Hotel } from '../../modules/hotels/model.ts'
 
 export function HotelSelectPage() {
   const { hotels, hotelId, setHotelId, bootstrapping, bootstrapError, retryBootstrap } = useApp()

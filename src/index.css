@@ -79,6 +79,54 @@ textarea {
   outline-color: var(--hotel-primary);
 }
 
+.totem-welcome-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(4.5rem, 14vw, 5.75rem);
+  height: clamp(4.5rem, 14vw, 5.75rem);
+  border-radius: 9999px;
+  font-size: clamp(1.45rem, 4vw, 1.85rem);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  animation: totem-welcome-breathe 3s ease-in-out infinite;
+}
+
+.totem-welcome-cta {
+  animation: totem-welcome-pulse 2.4s ease-in-out infinite;
+}
+
+.totem-welcome-tap:active {
+  background: color-mix(in srgb, var(--hotel-primary) 5%, #fff);
+}
+
+@keyframes totem-welcome-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+@keyframes totem-welcome-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--hotel-primary) 30%, transparent);
+  }
+  55% {
+    box-shadow: 0 0 0 14px color-mix(in srgb, var(--hotel-primary) 0%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .totem-welcome-mark,
+  .totem-welcome-cta {
+    animation: none;
+  }
+}
+
 .totem-success-mark {
   animation: totem-settle 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
 }

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
-import { PanelLeft } from 'lucide-react'
-import { useApp } from '../../context/AppContext.tsx'
+import { useApp } from '../../app/useApp.ts'
 import { Sidebar } from './Sidebar.tsx'
 import { Topbar } from './Topbar.tsx'
 import { GlobalSearch } from './GlobalSearch.tsx'
@@ -10,8 +9,6 @@ export function AdminLayout() {
   const {
     mobileNavOpen,
     setMobileNavOpen,
-    sidebarCollapsed,
-    toggleSidebar,
     hotels,
     hotel,
     bootstrapping,
@@ -68,18 +65,7 @@ export function AdminLayout() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar />
-        <main className="relative min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
-          {sidebarCollapsed && (
-            <button
-              type="button"
-              aria-label="Expandir menu"
-              onClick={toggleSidebar}
-              className="absolute left-2 top-2 hidden size-8 items-center justify-center rounded-lg text-muted hover:bg-surface lg:flex"
-            >
-              <PanelLeft size={16} />
-            </button>
-          )}
-
+        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
           {bootstrapping && (
             <p className="mb-4 text-[13px] text-muted">Sincronizando com a API…</p>
           )}

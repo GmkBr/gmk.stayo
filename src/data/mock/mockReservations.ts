@@ -1,4 +1,4 @@
-import type { Reservation } from '../../types/index.ts'
+import type { Reservation } from '../../modules/reservations/model.ts'
 
 export const mockReservations: Reservation[] = [
   {

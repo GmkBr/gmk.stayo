@@ -1,6 +1,6 @@
 import { ApiError } from '../../api/client.ts'
-import type { CreateHotelInput } from '../../api/index.ts'
-import type { Hotel } from '../../types/index.ts'
+import type { CreateHotelInput } from '../../modules/hotels/api.ts'
+import type { Hotel } from '../../modules/hotels/model.ts'
 
 export const UF_OPTIONS = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
