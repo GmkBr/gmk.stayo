@@ -1,4 +1,4 @@
-import type { MaintenanceRequest } from '../../types/index.ts'
+import type { MaintenanceRequest } from '../../types/legacy.ts'
 
 export const mockMaintenance: MaintenanceRequest[] = [
   { id: 'mt-1', hotelId: 'aurora', code: '1842', title: 'Ar-condicionado', roomNumber: '305', priority: 'high', status: 'open', openedAt: '2026-08-14 09:21', notes: 'Não gela. Hóspede no 307 relatou ruído no corredor, mas o chamado é do 305 (vazio).' },

@@ -2,7 +2,7 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import { cn } from '../../utils/cn.ts'
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline'
-type Size = 'sm' | 'md' | 'lg'
+type Size = 'sm' | 'md' | 'lg' | 'kiosk'
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: Variant
@@ -22,6 +22,7 @@ const sizes: Record<Size, string> = {
   sm: 'h-8 px-3 text-[13px] gap-1.5',
   md: 'h-9 px-3.5 text-[13px] gap-2',
   lg: 'h-11 px-4 text-sm gap-2',
+  kiosk: 'h-14 min-h-14 px-5 text-base gap-2 rounded-xl',
 }
 
 export function Button({

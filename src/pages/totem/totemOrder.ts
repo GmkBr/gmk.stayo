@@ -1,4 +1,5 @@
-import type { CatalogCategory, CatalogItem, Service } from '../../types/index.ts'
+import type { CatalogCategory, CatalogItem, Service } from '../../modules/catalog/model.ts'
+import type { Order } from '../../modules/orders/model.ts'
 
 export const IDLE_MS = 60_000
 export const DONE_MS = 10_000
@@ -14,7 +15,7 @@ export function categoriesForArea(categories: CatalogCategory[], areaId: string)
   return categories
     .filter(
       (item) =>
-        item.context === 'area' &&
+        (item.context === 'area' || item.context === 'both') &&
         (!item.areaIds || item.areaIds.length === 0 || item.areaIds.includes(areaId)),
     )
     .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -30,6 +31,8 @@ export type CartLine = {
   price: number
   qty: number
   kind: 'catalog' | 'service'
+  catalogItemId?: string
+  serviceId?: string
 }
 
 export function serviceAsCartLine(service: Service): CartLine {
@@ -39,6 +42,7 @@ export function serviceAsCartLine(service: Service): CartLine {
     price: service.price,
     qty: 1,
     kind: 'service',
+    serviceId: service.id,
   }
 }
 
@@ -49,6 +53,7 @@ export function catalogAsCartLine(item: CatalogItem): CartLine {
     price: item.price,
     qty: 1,
     kind: 'catalog',
+    catalogItemId: item.id,
   }
 }
 
@@ -63,12 +68,12 @@ export function cartCount(lines: CartLine[]) {
 export function mergeCartLine(lines: CartLine[], incoming: CartLine) {
   const index = lines.findIndex((line) => line.key === incoming.key)
   if (index === -1) return [...lines, incoming]
-  return lines.map((line, i) => (i === index ? { ...line, qty: line.qty + 1 } : line))
+  return lines.map((line, i) => (i === index ? { ...line, qty: Math.min(100, line.qty + 1) } : line))
 }
 
 export function bumpCartLine(lines: CartLine[], key: string, delta: number) {
   return lines
-    .map((line) => (line.key === key ? { ...line, qty: line.qty + delta } : line))
+    .map((line) => (line.key === key ? { ...line, qty: Math.min(100, line.qty + delta) } : line))
     .filter((line) => line.qty > 0)
 }
 
@@ -78,5 +83,15 @@ export function toOrderLines(lines: CartLine[]) {
     name: line.name,
     qty: line.qty,
     price: line.price,
+    catalogItemId: line.catalogItemId,
+    serviceId: line.serviceId,
   }))
+}
+
+export function ordersNewestFirst(orders: Order[]): Order[] {
+  const timestamp = (order: Order) => {
+    const value = Date.parse(order.createdAt ?? '')
+    return Number.isFinite(value) ? value : 0
+  }
+  return [...orders].sort((a, b) => timestamp(b) - timestamp(a))
 }

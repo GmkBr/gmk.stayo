@@ -1,13 +1,19 @@
 import { useEffect, useState } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
-import { PanelLeft } from 'lucide-react'
-import { useApp } from '../../context/AppContext.tsx'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
+import { useApp } from '../../app/useApp.ts'
 import { Sidebar } from './Sidebar.tsx'
 import { Topbar } from './Topbar.tsx'
 import { GlobalSearch } from './GlobalSearch.tsx'
 
 export function AdminLayout() {
-  const { mobileNavOpen, setMobileNavOpen, sidebarCollapsed, toggleSidebar } = useApp()
+  const {
+    mobileNavOpen,
+    setMobileNavOpen,
+    hotels,
+    hotel,
+    bootstrapping,
+    bootstrapError,
+  } = useApp()
   const location = useLocation()
   const [searchOpen, setSearchOpen] = useState(false)
 
@@ -17,7 +23,12 @@ export function AdminLayout() {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === '/' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement) && !(e.target instanceof HTMLSelectElement)) {
+      if (
+        e.key === '/' &&
+        !(e.target instanceof HTMLInputElement) &&
+        !(e.target instanceof HTMLTextAreaElement) &&
+        !(e.target instanceof HTMLSelectElement)
+      ) {
         e.preventDefault()
         setSearchOpen(true)
       }
@@ -25,6 +36,10 @@ export function AdminLayout() {
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [])
+
+  if (!bootstrapping && !bootstrapError && (hotels.length === 0 || !hotel.id)) {
+    return <Navigate to="/hoteis" replace />
+  }
 
   return (
     <div className="flex min-h-svh bg-canvas">
@@ -36,7 +51,12 @@ export function AdminLayout() {
 
       {mobileNavOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <button type="button" aria-label="Fechar menu" className="absolute inset-0 bg-ink/25" onClick={() => setMobileNavOpen(false)} />
+          <button
+            type="button"
+            aria-label="Fechar menu"
+            className="absolute inset-0 bg-ink/25"
+            onClick={() => setMobileNavOpen(false)}
+          />
           <div className="absolute inset-y-0 left-0">
             <Sidebar />
           </div>
@@ -45,18 +65,18 @@ export function AdminLayout() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar />
-        <main className="relative min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
-          {sidebarCollapsed && (
-            <button
-              type="button"
-              aria-label="Expandir menu"
-              onClick={toggleSidebar}
-              className="absolute left-2 top-2 hidden size-8 items-center justify-center rounded-lg text-muted hover:bg-surface lg:flex"
-            >
-              <PanelLeft size={16} />
-            </button>
+        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
+          {bootstrapping && (
+            <p className="mb-4 text-[13px] text-muted">Sincronizando com a API…</p>
           )}
-          <Outlet />
+
+          {bootstrapError && (
+            <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+              {bootstrapError}
+            </p>
+          )}
+
+          {!bootstrapping && !bootstrapError && <Outlet />}
         </main>
       </div>
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />

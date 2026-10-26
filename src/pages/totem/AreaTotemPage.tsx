@@ -1,71 +1,77 @@
-import { mockHotels } from '../../data/mock/index.ts'
-import { useApp } from '../../context/AppContext.tsx'
-import { useTotemSession } from '../../hooks/useTotemSession.ts'
-import { TotemSetup } from '../../components/totem/TotemSetup.tsx'
+import { useTotemProfile } from '../../hooks/useTotemProfile.ts'
+import { useTotemSpaceBinding } from '../../hooks/useTotemSpaceBinding.ts'
+import { useTotemCatalog } from '../../hooks/useTotemCatalog.ts'
 import { CatalogFlow, toOrderLines } from '../../components/totem/CatalogFlow.tsx'
 import { categoriesForArea } from './totemOrder.ts'
 import type { CartLine } from './totemOrder.ts'
+import { useApp } from '../../app/useApp.ts'
+import { TotemSpaceSetup } from './TotemSpaceSetup.tsx'
 
 export function AreaTotemPage() {
-  const { totem, hotel, isBound, bind, unbind } = useTotemSession('area')
-  const { areas, catalogCategories, catalogItems, addOrder, addActivity } = useApp()
+  const { ready: profileReady } = useTotemProfile('area')
+  const { totem, hotel, binding, needsSetup, confirmBinding, clearBinding, resolving, isDedicated } =
+    useTotemSpaceBinding('area')
+  const { addOrder, addActivity } = useApp()
+  const catalog = useTotemCatalog(hotel?.id)
 
-  const fallbackBrand = mockHotels[0].brand
-
-  if (!isBound || !totem || !hotel) {
+  if (!profileReady || resolving) {
     return (
-      <TotemSetup
-        brand={hotel?.brand ?? fallbackBrand}
-        kind="area"
-        onBind={(code) => {
-          const result = bind(code)
-          return result.ok ? { ok: true } : { ok: false, error: result.error }
-        }}
-      />
+      <div className="totem-shell flex min-h-svh items-center justify-center text-[15px] text-muted">
+        Carregando totem…
+      </div>
     )
   }
 
-  const boundTotem = totem
-  const boundHotel = hotel
+  if (!totem || !hotel?.id) return null
 
-  const area = areas.find((item) => item.id === boundTotem.areaId)
-  const areaName = area?.name ?? boundTotem.name
-  const categories = categoriesForArea(
-    catalogCategories.filter((item) => item.hotelId === boundHotel.id),
-    boundTotem.areaId ?? '',
-  )
-  const items = catalogItems.filter((item) => item.hotelId === boundHotel.id)
+  if (needsSetup) {
+    return (
+      <TotemSpaceSetup kind="area" hotel={hotel} brand={hotel.brand} onSelect={confirmBinding} />
+    )
+  }
 
-  function handleSubmit(lines: CartLine[], notes: string) {
+  if (!totem || !hotel?.id || !binding) return null
+
+  const activeTotem = totem
+  const activeHotel = hotel
+  const activeBinding = binding
+  const areaName = activeBinding.spaceName
+  const categories = categoriesForArea(catalog.categories, activeBinding.spaceId)
+  const items = catalog.items
+
+  async function handleSubmit(lines: CartLine[], notes: string) {
     const guestName = 'Hóspede na área'
     const orderLines = toOrderLines(lines)
-    addOrder({
-      hotelId: boundHotel.id,
+    await addOrder({
+      hotelId: activeHotel.id,
       source: 'area',
       location: areaName,
       guestName,
       lines: orderLines,
-      totemId: boundTotem.id,
+      totemId: activeTotem.id,
+      spaceId: activeBinding.spaceId,
       notes: notes || undefined,
     })
     addActivity({
       time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
       title: 'Pedido na área',
-      detail: `${areaName}`,
-      kind: 'request',
+      detail: areaName,
+      kind: 'order',
     })
   }
 
   return (
     <CatalogFlow
-      brand={boundHotel.brand}
+      brand={activeHotel.brand}
+      title={activeHotel.name}
       contextLabel={areaName}
       greeting="Faça seu pedido"
       subtitle={`Cardápio e serviços de ${areaName}. Informe seu quarto nas observações, se quiser. Pagamento na recepção.`}
       categories={categories}
       items={items}
       onSubmit={handleSubmit}
-      onUnbind={unbind}
+      onChangeSpace={isDedicated ? undefined : clearBinding}
+      changeSpaceLabel="Trocar área"
     />
   )
 }

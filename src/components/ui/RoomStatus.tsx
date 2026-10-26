@@ -1,4 +1,4 @@
-import type { RoomStatus } from '../../types/index.ts'
+import type { RoomStatus } from '../../modules/spaces/model.ts'
 import { cn } from '../../utils/cn.ts'
 import { ROOM_STATUS_LABEL } from './StatusBadge.tsx'
 

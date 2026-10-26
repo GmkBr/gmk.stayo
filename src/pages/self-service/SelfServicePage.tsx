@@ -1,77 +1,132 @@
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Check, ChevronLeft, ScanLine } from 'lucide-react'
-import { useApp } from '../../context/AppContext.tsx'
+import { useApp } from '../../app/useApp.ts'
+import { useAuth } from '../../auth/AuthContext.tsx'
+import { ApiError } from '../../api/client.ts'
+import { isDemoMode } from '../../demo/mode.ts'
 import { Button } from '../../components/ui/Button.tsx'
 import { Input } from '../../components/ui/Input.tsx'
-import { formatLongDate } from '../../utils/format.ts'
+import { TotemStaffConfigHold } from '../../components/totem/TotemStaffConfigHold.tsx'
+import { formatBRLExact, formatLongDate } from '../../utils/format.ts'
+import { totemSearchEmptyMessage } from '../../lib/totemSearch.ts'
+import { reservationRoomLabel } from '../../lib/reservationDisplay.ts'
 import { cn } from '../../utils/cn.ts'
-import type { Reservation } from '../../types/index.ts'
+import type { CheckoutStatement } from '../../modules/journeys/model.ts'
+import type { PaymentMethod } from '../../shared/model.ts'
+import type { Reservation } from '../../modules/reservations/model.ts'
+import { totemBrandTitle, hotelMonogram, totemShellStyle } from '../../lib/totemBrand.ts'
 import {
   DONE_MS,
   FLOW_STEPS,
   IDLE_MS,
   SCAN_MS,
-  SEARCH_MS,
   clockLabel,
   firstName,
   searchReservations,
-  termsFor,
+  termsDisplayFor,
   wingCopy,
   type FlowStepId,
 } from './totemCheckin.ts'
+import {
+  CHECKOUT_PAYMENT_OPTIONS,
+  searchCheckoutReservations,
+} from './totemCheckout.ts'
 
-type Screen = 'início' | FlowStepId | 'lista' | 'fim' | 'operador'
+type FlowMode = 'checkin' | 'checkout'
+type Screen = 'início' | FlowStepId | 'lista' | 'extrato' | 'pagamento' | 'fim'
 type DocStatus = 'idle' | 'scanning' | 'ok' | 'fail'
 
-const KIOSK_BTN = 'h-14 min-h-14 w-full rounded-xl text-base'
+const KIOSK_BTN = 'w-full'
+const CHECKOUT_STEPS = [
+  { id: 'busca', label: 'Reserva' },
+  { id: 'extrato', label: 'Conta' },
+  { id: 'pagamento', label: 'Pagamento' },
+] as const
+
+function totemApiMessage(err: unknown, fallback: string) {
+  if (err instanceof ApiError) {
+    if (err.status === 409) {
+      return err.message || 'Esta operação já foi concluída. Fale com a recepção, ao lado.'
+    }
+    return err.message || fallback
+  }
+  return fallback
+}
 
 export function SelfServicePage() {
   const navigate = useNavigate()
-  const { hotel, hotelReservations, hotelRooms, updateReservationStatus, updateRoomStatus, addActivity } = useApp()
+  const { signOut } = useAuth()
+  const {
+    hotel,
+    hotelRooms,
+    searchCheckin,
+    validateCheckin,
+    completeCheckin,
+    searchCheckout,
+    validateCheckout,
+    completeCheckout,
+    addActivity,
+  } = useApp()
   const brand = hotel.brand
-  const terms = termsFor(hotel)
+  const terms = termsDisplayFor(hotel)
   const termsId = useId()
 
+  const [flowMode, setFlowMode] = useState<FlowMode | null>(null)
   const [screen, setScreen] = useState<Screen>('início')
   const [query, setQuery] = useState('')
   const [searchError, setSearchError] = useState('')
   const [searching, setSearching] = useState(false)
+  const [validating, setValidating] = useState(false)
+  const [completing, setCompleting] = useState(false)
   const [matches, setMatches] = useState<Reservation[]>([])
   const [reservation, setReservation] = useState<Reservation | null>(null)
+  const [statement, setStatement] = useState<CheckoutStatement | null>(null)
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card')
   const [docStatus, setDocStatus] = useState<DocStatus>('idle')
   const [accepted, setAccepted] = useState(false)
   const [secondsLeft, setSecondsLeft] = useState(DONE_MS / 1000)
   const [notice, setNotice] = useState('')
+  const [flowError, setFlowError] = useState('')
+  const demoMode = isDemoMode()
 
-  const searchTimer = useRef<number | undefined>(undefined)
   const scanTimer = useRef<number | undefined>(undefined)
   const idleTimer = useRef<number | undefined>(undefined)
   const doneTimer = useRef<number | undefined>(undefined)
   const tickTimer = useRef<number | undefined>(undefined)
+  const sessionVersion = useRef(0)
 
-  const flowIndex = FLOW_STEPS.findIndex((step) => step.id === screen)
-  const inFlow = flowIndex >= 0 || screen === 'lista'
-  const progressIndex = screen === 'lista' ? 0 : flowIndex
+  const isCheckout = flowMode === 'checkout'
+  const steps = isCheckout ? CHECKOUT_STEPS : FLOW_STEPS
+  const flowIndex = steps.findIndex((step) => step.id === screen)
+  const inFlow = flowMode !== null && (flowIndex >= 0 || screen === 'lista')
+  const progressIndex =
+    screen === 'lista' ? 0 : screen === 'extrato' ? 1 : screen === 'pagamento' ? 2 : flowIndex
 
   const room = reservation ? hotelRooms.find((item) => item.id === reservation.roomId) : undefined
   const floor = room?.floor ?? Number(reservation?.roomNumber.slice(0, 1) || 1)
 
   const resetSession = useCallback((nextNotice = '') => {
-    window.clearTimeout(searchTimer.current)
+    sessionVersion.current += 1
     window.clearTimeout(scanTimer.current)
     window.clearTimeout(doneTimer.current)
     window.clearInterval(tickTimer.current)
+    setFlowMode(null)
     setScreen('início')
     setQuery('')
     setSearchError('')
     setSearching(false)
+    setValidating(false)
+    setCompleting(false)
     setMatches([])
     setReservation(null)
+    setStatement(null)
+    setPaymentMethod('card')
     setDocStatus('idle')
     setAccepted(false)
     setSecondsLeft(DONE_MS / 1000)
     setNotice(nextNotice)
+    setFlowError('')
   }, [])
 
   const bumpIdle = useCallback(() => {
@@ -94,7 +149,6 @@ export function SelfServicePage() {
 
   useEffect(() => {
     return () => {
-      window.clearTimeout(searchTimer.current)
       window.clearTimeout(scanTimer.current)
       window.clearTimeout(doneTimer.current)
       window.clearInterval(tickTimer.current)
@@ -102,7 +156,15 @@ export function SelfServicePage() {
     }
   }, [])
 
+  function startFlow(mode: FlowMode) {
+    setFlowMode(mode)
+    setScreen('busca')
+    setSearchError('')
+    setFlowError('')
+  }
+
   function goBack() {
+    setFlowError('')
     if (screen === 'busca' || screen === 'lista') {
       resetSession()
       return
@@ -120,44 +182,100 @@ export function SelfServicePage() {
       setAccepted(false)
       setScreen('docs')
     }
+    if (screen === 'extrato') {
+      setStatement(null)
+      setScreen(matches.length > 1 ? 'lista' : 'busca')
+    }
+    if (screen === 'pagamento') {
+      setScreen('extrato')
+    }
+  }
+
+  async function openCheckinReservation(next: Reservation) {
+    const version = sessionVersion.current
+    setValidating(true)
+    setSearchError('')
+    try {
+      const validated = await validateCheckin(next.id)
+      if (version !== sessionVersion.current) return
+      setReservation(validated)
+      setDocStatus('idle')
+      setAccepted(false)
+      setScreen('dados')
+    } catch (err) {
+      if (version !== sessionVersion.current) return
+      setSearchError(totemApiMessage(err, 'Não foi possível validar a reserva. A recepção resolve.'))
+    } finally {
+      if (version === sessionVersion.current) setValidating(false)
+    }
+  }
+
+  async function openCheckoutReservation(next: Reservation) {
+    const version = sessionVersion.current
+    setValidating(true)
+    setSearchError('')
+    try {
+      const nextStatement = await validateCheckout(next.id)
+      if (version !== sessionVersion.current) return
+      setReservation(nextStatement.reservation)
+      setStatement(nextStatement)
+      setPaymentMethod('card')
+      setScreen('extrato')
+    } catch (err) {
+      if (version !== sessionVersion.current) return
+      setSearchError(totemApiMessage(err, 'Não foi possível carregar a conta. A recepção resolve.'))
+    } finally {
+      if (version === sessionVersion.current) setValidating(false)
+    }
   }
 
   function openReservation(next: Reservation) {
-    setReservation(next)
-    setSearchError('')
-    setDocStatus('idle')
-    setAccepted(false)
-    setScreen('dados')
+    if (isCheckout) void openCheckoutReservation(next)
+    else void openCheckinReservation(next)
   }
 
   function handleSearch() {
-    if (searching) return
+    if (searching || validating) return
+    if (!query.trim()) {
+      setSearchError(totemSearchEmptyMessage())
+      return
+    }
     setSearching(true)
     setSearchError('')
-    window.clearTimeout(searchTimer.current)
-    searchTimer.current = window.setTimeout(() => {
-      const outcome = searchReservations(hotelReservations, query)
-      setSearching(false)
-      if (outcome.kind === 'empty') {
-        setSearchError('Digite o nome completo ou o código da reserva.')
-        return
+    const version = sessionVersion.current
+    void (async () => {
+      try {
+        const list = isCheckout ? await searchCheckout(query) : await searchCheckin(query)
+        if (version !== sessionVersion.current) return
+        setSearching(false)
+        const outcome = isCheckout
+          ? searchCheckoutReservations(list, query)
+          : searchReservations(list, query)
+        if (outcome.kind === 'empty') {
+          setSearchError(totemSearchEmptyMessage())
+          return
+        }
+        if (outcome.kind === 'none') {
+          setSearchError('Nenhuma reserva encontrada. Confira os dados ou chame a recepção, ao lado.')
+          return
+        }
+        if (outcome.kind === 'blocked') {
+          setSearchError(outcome.message)
+          return
+        }
+        if (outcome.kind === 'many') {
+          setMatches(outcome.reservations)
+          setScreen('lista')
+          return
+        }
+        setMatches([])
+        openReservation(outcome.reservation)
+      } catch (err) {
+        if (version !== sessionVersion.current) return
+        setSearching(false)
+        setSearchError(totemApiMessage(err, 'Não foi possível consultar a API. Verifique a conexão e o login.'))
       }
-      if (outcome.kind === 'none') {
-        setSearchError('Nenhuma reserva encontrada. Confira o nome ou chame a recepção, ao lado.')
-        return
-      }
-      if (outcome.kind === 'blocked') {
-        setSearchError(outcome.message)
-        return
-      }
-      if (outcome.kind === 'many') {
-        setMatches(outcome.reservations)
-        setScreen('lista')
-        return
-      }
-      setMatches([])
-      openReservation(outcome.reservation)
-    }, SEARCH_MS)
+    })()
   }
 
   function startScan() {
@@ -167,15 +285,13 @@ export function SelfServicePage() {
     scanTimer.current = window.setTimeout(() => setDocStatus('ok'), SCAN_MS)
   }
 
-  function finishCheckIn() {
-    if (!reservation || !accepted) return
-    updateReservationStatus(reservation.id, 'checked_in')
-    updateRoomStatus(reservation.roomId, 'occupied')
+  function showDoneScreen(next: Reservation, activity: { title: string; detail: string; kind: 'checkin' | 'checkout' }) {
+    setReservation(next)
     addActivity({
       time: clockLabel(),
-      title: 'Check-in no totem',
-      detail: `${reservation.guestName} — Quarto ${reservation.roomNumber}`,
-      kind: 'checkin',
+      title: activity.title,
+      detail: activity.detail,
+      kind: activity.kind,
     })
     setScreen('fim')
     setSecondsLeft(DONE_MS / 1000)
@@ -187,10 +303,61 @@ export function SelfServicePage() {
     doneTimer.current = window.setTimeout(resetSession, DONE_MS)
   }
 
+  function finishCheckIn() {
+    if (!reservation || !accepted) return
+    const version = sessionVersion.current
+    setCompleting(true)
+    setFlowError('')
+    void completeCheckin(reservation.id)
+      .then((next) => {
+        if (version !== sessionVersion.current) return
+        showDoneScreen(next, {
+          title: 'Check-in no totem',
+          detail: `${next.guestName} — Quarto ${next.roomNumber}`,
+          kind: 'checkin',
+        })
+      })
+      .catch((err) => {
+        if (version !== sessionVersion.current) return
+        setFlowError(totemApiMessage(err, 'Não foi possível concluir o check-in. Tente novamente ou chame a recepção.'))
+      })
+      .finally(() => {
+        if (version === sessionVersion.current) setCompleting(false)
+      })
+  }
+
+  function finishCheckout() {
+    if (!reservation || !statement) return
+    const version = sessionVersion.current
+    setCompleting(true)
+    setFlowError('')
+    void completeCheckout(reservation.id, {
+      paymentMethod,
+      paidAmount: statement.total,
+    })
+      .then((next) => {
+        if (version !== sessionVersion.current) return
+        showDoneScreen(next, {
+          title: 'Check-out realizado',
+          detail: `${next.guestName} — ${formatBRLExact(statement.total)}`,
+          kind: 'checkout',
+        })
+      })
+      .catch((err) => {
+        if (version !== sessionVersion.current) return
+        setFlowError(totemApiMessage(err, 'Não foi possível concluir o check-out. Tente novamente ou chame a recepção.'))
+      })
+      .finally(() => {
+        if (version === sessionVersion.current) setCompleting(false)
+      })
+  }
+
   const footer = footerFor(screen, {
-    searching,
+    searching: searching || validating,
+    completing,
     docStatus,
     accepted,
+    isCheckout,
     onBack: goBack,
     onSearch: handleSearch,
     onConfirm: () => setScreen('docs'),
@@ -198,31 +365,43 @@ export function SelfServicePage() {
     onScan: startScan,
     onFinish: finishCheckIn,
     onRejectTerms: () => resetSession('Sem aceitar os termos, o check-in fica com a recepção, ao lado.'),
+    onContinueExtrato: () => setScreen('pagamento'),
+    onFinishCheckout: finishCheckout,
   })
 
   return (
-    <div
-      className="totem-shell flex min-h-svh flex-col"
-      style={{
-        background: brand.secondaryColor,
-        ['--hotel-primary' as string]: brand.primaryColor,
-        ['--hotel-accent' as string]: brand.accentColor,
-        ['--hotel-secondary' as string]: brand.secondaryColor,
-      }}
-    >
+    <div className="totem-shell flex min-h-svh flex-col" style={totemShellStyle(brand)}>
       <header className="px-6 pt-[max(1rem,env(safe-area-inset-top))] pb-3">
-        <p className="text-[13px] font-semibold uppercase tracking-[0.14em]" style={{ color: brand.primaryColor }}>
-          {brand.hotelName}
-        </p>
+        <TotemStaffConfigHold
+          holdMs={5000}
+          actions={[
+            {
+              label: 'Voltar ao início',
+              onClick: () => resetSession(),
+            },
+            {
+              label: 'Sair',
+              variant: 'danger',
+              onClick: () => {
+                void signOut().then(() => navigate('/login', { replace: true }))
+              },
+            },
+          ]}
+        >
+          <p className="text-[13px] font-semibold uppercase tracking-[0.14em]" style={{ color: brand.primaryColor }}>
+            {totemBrandTitle(brand, hotel.name)}
+          </p>
+        </TotemStaffConfigHold>
+        {demoMode && <p className="mt-1 text-[12px] font-medium text-muted">Modo demonstração</p>}
       </header>
 
       {inFlow && progressIndex >= 0 && (
         <div className="px-6 pb-2">
-          <p className="text-[15px] font-medium">
-            Passo {progressIndex + 1} de {FLOW_STEPS.length}
+          <p className="text-[15px] font-medium" aria-live="off">
+            Passo {progressIndex + 1} de {steps.length}: {steps[progressIndex]?.label}
           </p>
           <ol className="mt-3 flex gap-2" aria-hidden="true">
-            {FLOW_STEPS.map((step, index) => (
+            {steps.map((step, index) => (
               <li
                 key={step.id}
                 className="h-1.5 flex-1 rounded-full"
@@ -237,28 +416,73 @@ export function SelfServicePage() {
       )}
 
       <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-6" aria-live="polite">
+        {flowError && screen !== 'início' && (
+          <div role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[15px] text-red-900">
+            {flowError}
+          </div>
+        )}
         {screen === 'início' && (
-          <div className="flex flex-1 flex-col justify-center pb-8 text-center">
-            <h1 className="text-[clamp(1.85rem,5vw,2.35rem)] font-semibold leading-[1.15] tracking-[-0.04em] text-balance">
-              Bem-vindo ao {hotel.name}
-            </h1>
-            <p className="mx-auto mt-4 max-w-md text-[17px] leading-relaxed text-muted">
-              Toque para começar o check-in. A recepção está ao lado, se preferir.
-            </p>
-            {notice && <p className="mx-auto mt-5 max-w-md text-[16px] font-medium">{notice}</p>}
+          <div className="flex flex-1 flex-col justify-center py-4">
+            <div className="flex flex-col items-center text-center">
+              <div
+                className="totem-welcome-mark"
+                style={{
+                  color: brand.primaryColor,
+                  background: `color-mix(in srgb, ${brand.accentColor} 20%, #ffffff)`,
+                  border: `2px solid color-mix(in srgb, ${brand.primaryColor} 22%, transparent)`,
+                }}
+                aria-hidden
+              >
+                {hotelMonogram(hotel.name)}
+              </div>
+              <span
+                className="mx-auto mt-5 block h-1 w-16 rounded-full"
+                style={{ background: brand.accentColor }}
+                aria-hidden
+              />
+              <h1 className="mt-6 text-[clamp(1.85rem,5vw,2.35rem)] font-semibold leading-[1.15] tracking-[-0.04em] text-balance">
+                Bem-vindo ao {hotel.name}
+              </h1>
+              <p className="mx-auto mt-4 max-w-md text-[17px] leading-relaxed text-muted">
+                Encontre sua reserva e siga as etapas na tela. A recepção está disponível se precisar de ajuda.
+              </p>
+            </div>
+
+            <div className="mt-8 flex flex-col gap-3">
+              <Button size="kiosk" className={KIOSK_BTN} onClick={() => startFlow('checkin')}>
+                Iniciar check-in
+              </Button>
+              <Button size="kiosk" variant="secondary" className={KIOSK_BTN} onClick={() => startFlow('checkout')}>
+                Fazer check-out
+              </Button>
+            </div>
+
+            {notice && (
+              <div
+                role="alert"
+                className="mx-auto mt-6 max-w-md rounded-2xl border px-4 py-3 text-[15px] font-medium leading-snug"
+                style={{
+                  borderColor: `color-mix(in srgb, ${brand.accentColor} 45%, #d1d5db)`,
+                  background: `color-mix(in srgb, ${brand.accentColor} 14%, #ffffff)`,
+                  color: '#171717',
+                }}
+              >
+                {notice}
+              </div>
+            )}
           </div>
         )}
 
         {screen === 'busca' && (
-          <FlowBody title="Encontre sua reserva">
+          <FlowBody title={isCheckout ? 'Encontre sua estadia' : 'Encontre sua reserva'}>
             <Input
               autoFocus
               autoCapitalize="words"
               autoComplete="off"
               spellCheck={false}
-              label="Nome ou código da reserva"
-              placeholder="Maria Oliveira ou RS-1002"
-              hint="O código está no e-mail de confirmação."
+              label="Código da reserva, CPF ou nome completo"
+              placeholder="Maria Oliveira, RS-1002 ou 000.000.000-00"
+              hint="Use o código do e-mail de confirmação para encontrar sua reserva mais rápido."
               error={searchError || undefined}
               value={query}
               onChange={(event) => {
@@ -280,13 +504,14 @@ export function SelfServicePage() {
                 <li key={item.id}>
                   <button
                     type="button"
+                    disabled={validating}
                     onClick={() => openReservation(item)}
-                    className="flex min-h-16 w-full items-center justify-between rounded-2xl bg-white px-4 py-4 text-left"
+                    className="flex min-h-16 w-full items-center justify-between rounded-2xl bg-white px-4 py-4 text-left disabled:opacity-60"
                   >
                     <span>
                       <span className="block text-[17px] font-medium">{item.guestName}</span>
                       <span className="mt-1 block text-[14px] text-muted">
-                        Quarto {item.roomNumber} · {formatLongDate(item.checkIn)}
+                        {formatLongDate(isCheckout ? item.checkOut : item.checkIn)}
                       </span>
                     </span>
                   </button>
@@ -300,7 +525,8 @@ export function SelfServicePage() {
           <FlowBody title="Confirme seus dados">
             <ul className="space-y-3 text-[16px]">
               <Row k="Hóspede" v={reservation.guestName} />
-              <Row k="Quarto" v={`${reservation.roomNumber} · ${reservation.category}`} />
+              {reservation.code && <Row k="Reserva" v={reservation.code} />}
+              <Row k="Quarto" v={reservationRoomLabel(reservation)} />
               <Row k="Entrada" v={formatLongDate(reservation.checkIn)} />
               <Row k="Saída" v={formatLongDate(reservation.checkOut)} />
             </ul>
@@ -321,7 +547,7 @@ export function SelfServicePage() {
         {screen === 'docs' && (
           <FlowBody title="Documento">
             <p className="text-[16px] leading-relaxed text-muted">
-              Aproxime o RG ou a CNH da câmera. Se você já enviou na pré-chegada, confirme abaixo.
+              Esta etapa demonstra a conferência de identidade. Nenhum documento é lido por este dispositivo.
             </p>
             <div
               className={cn(
@@ -333,49 +559,51 @@ export function SelfServicePage() {
               {docStatus === 'idle' && (
                 <>
                   <ScanLine className="size-8" style={{ color: brand.primaryColor }} strokeWidth={1.75} />
-                  <p className="mt-3 text-[16px] text-muted">Câmera pronta</p>
+                  <p className="mt-3 text-[16px] text-muted">Leitura demonstrativa</p>
                 </>
               )}
-              {docStatus === 'scanning' && <p className="text-[16px] font-medium">Lendo o documento…</p>}
+              {docStatus === 'scanning' && <p className="text-[16px] font-medium">Simulando conferência…</p>}
               {docStatus === 'ok' && (
                 <>
                   <Check className="size-8" style={{ color: brand.accentColor }} strokeWidth={2.2} />
-                  <p className="mt-3 text-[16px] font-medium">Documento reconhecido</p>
+                  <p className="mt-3 text-[16px] font-medium">Etapa demonstrativa concluída</p>
                 </>
               )}
               {docStatus === 'fail' && (
-                <p className="text-[16px] font-medium">Não deu para ler. Aproxime de novo, com o documento aberto.</p>
+                <p className="text-[16px] font-medium">A conferência real precisa ser feita pela equipe.</p>
               )}
             </div>
-            {docStatus !== 'ok' && (
-              <button
-                type="button"
-                className="mt-4 min-h-12 text-[16px] font-medium underline-offset-4 hover:underline"
-                style={{ color: brand.primaryColor }}
-                onClick={() => setDocStatus('ok')}
-              >
-                Já enviei na pré-chegada
-              </button>
-            )}
-            {docStatus === 'idle' && (
-              <button
-                type="button"
-                className="mt-1 min-h-12 text-[15px] text-muted underline-offset-4 hover:underline"
-                onClick={() => setDocStatus('fail')}
-              >
-                A câmera não está lendo
-              </button>
-            )}
           </FlowBody>
         )}
 
         {screen === 'termos' && (
           <FlowBody title="Termos da hospedagem">
-            <ul className="space-y-3 text-[16px] leading-relaxed text-muted">
-              {terms.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
+            {terms.lines.length > 0 && (
+              <ul className="space-y-3 text-[16px] leading-relaxed text-muted">
+                {terms.lines.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            )}
+            {terms.pdfUrl && (
+              <div className={terms.lines.length > 0 ? 'mt-5' : ''}>
+                <p className="mb-2 text-[14px] font-medium text-ink">Documento completo</p>
+                <iframe
+                  title="Termos da hospedagem em PDF"
+                  src={terms.pdfUrl}
+                  className="h-[min(42vh,320px)] w-full rounded-xl border border-line bg-canvas"
+                />
+                <a
+                  href={terms.pdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex min-h-11 items-center text-[14px] font-medium underline-offset-2 hover:underline"
+                  style={{ color: brand.primaryColor }}
+                >
+                  Abrir PDF em tela cheia
+                </a>
+              </div>
+            )}
             <label htmlFor={termsId} className="mt-6 flex min-h-14 cursor-pointer items-start gap-3">
               <input
                 id={termsId}
@@ -390,73 +618,125 @@ export function SelfServicePage() {
           </FlowBody>
         )}
 
-        {screen === 'fim' && reservation && (
-          <div className="totem-success-mark flex flex-1 flex-col justify-center pb-6 text-center">
-            <p
-              className="font-semibold leading-none tracking-[-0.05em]"
-              aria-label={`Quarto ${reservation.roomNumber}`}
-              style={{ fontSize: 'clamp(4.5rem, 18vw, 7rem)', color: brand.primaryColor }}
-            >
-              {reservation.roomNumber}
-            </p>
-            <span
-              className="mx-auto mt-5 block h-1 w-16 rounded-full"
-              style={{ background: brand.accentColor }}
-              aria-hidden="true"
-            />
-            <h2 className="mt-6 text-[1.75rem] font-semibold tracking-[-0.04em] text-balance">
-              Retire o cartão na bandeja à direita
-            </h2>
-            <p className="mx-auto mt-3 max-w-md text-[17px] leading-relaxed text-muted">
-              {firstName(reservation.guestName)}, siga {wingCopy(reservation.category, floor)}. Esta tela some sozinha em{' '}
-              {secondsLeft}s.
-            </p>
-          </div>
+        {screen === 'extrato' && reservation && statement && (
+          <FlowBody title="Sua conta">
+            <ul className="space-y-3 text-[16px]">
+              <Row k="Hóspede" v={reservation.guestName} />
+              <Row k="Quarto" v={reservation.roomNumber} />
+            </ul>
+            <ul className="mt-5 space-y-2">
+              {statement.charges.map((charge, index) => (
+                <li
+                  key={`${charge.type}-${charge.orderId ?? index}`}
+                  className="flex items-start justify-between gap-4 rounded-2xl bg-white px-4 py-3 text-[15px]"
+                >
+                  <span className="min-w-0 text-muted">{charge.label}</span>
+                  <span className="shrink-0 font-medium tabular-nums">{formatBRLExact(charge.amount)}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-4 flex items-center justify-between rounded-2xl px-4 py-4 text-[17px] font-semibold">
+              <span>Total</span>
+              <span className="tabular-nums" style={{ color: brand.primaryColor }}>
+                {formatBRLExact(statement.total)}
+              </span>
+            </div>
+            {(statement.openOrderIds?.length ?? 0) > 0 && (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[14px] leading-relaxed text-amber-950">
+                <p className="font-medium">
+                  {statement.openOrderIds!.length === 1
+                    ? '1 pedido ainda em preparo'
+                    : `${statement.openOrderIds!.length} pedidos ainda em preparo`}
+                </p>
+                <p className="mt-1 text-amber-900">
+                  Esses valores não entram neste pagamento. Fale com a recepção se precisar incluir.
+                </p>
+              </div>
+            )}
+          </FlowBody>
         )}
 
-        {screen === 'operador' && (
-          <div className="flex flex-1 flex-col justify-center pb-8 text-center">
-            <h2 className="text-[28px] font-semibold tracking-[-0.04em]">Voltar ao console?</h2>
-            <p className="mt-3 text-[16px] text-muted">O hóspede não precisa desta tela. Só use se for a equipe.</p>
+        {screen === 'pagamento' && statement && (
+          <FlowBody title="Forma de pagamento">
+            <p className="mb-4 text-[16px] text-muted">
+              Total a pagar: <strong className="text-ink">{formatBRLExact(statement.total)}</strong>
+            </p>
+            <p className="mb-5 rounded-xl border border-line bg-white px-4 py-3 text-[14px] leading-relaxed text-muted">
+              Este totem não cobra automaticamente. Confirme o pagamento com a recepção antes de sair.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {CHECKOUT_PAYMENT_OPTIONS.map((option) => {
+                const active = paymentMethod === option.value
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setPaymentMethod(option.value)}
+                    className={cn(
+                      'min-h-16 rounded-2xl border px-4 py-3 text-[16px] font-medium transition-colors',
+                      active ? 'border-transparent text-white' : 'border-line bg-white text-ink',
+                    )}
+                    style={active ? { background: brand.primaryColor } : undefined}
+                  >
+                    {option.label}
+                  </button>
+                )
+              })}
+            </div>
+          </FlowBody>
+        )}
+
+        {screen === 'fim' && reservation && (
+          <div className="totem-success-mark flex flex-1 flex-col justify-center pb-6 text-center">
+            {isCheckout ? (
+              <>
+                <Check className="mx-auto size-16" style={{ color: brand.accentColor }} strokeWidth={2} />
+                <h2 className="mt-6 text-[1.75rem] font-semibold tracking-[-0.04em] text-balance">
+                  Conta encerrada
+                </h2>
+                <p className="mx-auto mt-3 max-w-md text-[17px] leading-relaxed text-muted">
+                  {firstName(reservation.guestName)}, obrigado pela estadia. Confirme o pagamento com a recepção. Esta tela volta ao início em {secondsLeft}s.
+                </p>
+              </>
+            ) : (
+              <>
+                <p
+                  className="font-semibold leading-none tracking-[-0.05em]"
+                  aria-label={`Quarto ${reservation.roomNumber}`}
+                  style={{ fontSize: 'clamp(4.5rem, 18vw, 7rem)', color: brand.primaryColor }}
+                >
+                  {reservation.roomNumber}
+                </p>
+                <span
+                  className="mx-auto mt-5 block h-1 w-16 rounded-full"
+                  style={{ background: brand.accentColor }}
+                  aria-hidden="true"
+                />
+                <h2 className="mt-6 text-[1.75rem] font-semibold tracking-[-0.04em] text-balance">
+                  Check-in registrado
+                </h2>
+                <p className="mx-auto mt-3 max-w-md text-[17px] leading-relaxed text-muted">
+                  {firstName(reservation.guestName)}, procure a recepção para conferir o documento e retirar a chave. Seu quarto fica {wingCopy(reservation.category, floor)}. Esta tela volta ao início em {secondsLeft}s.
+                </p>
+              </>
+            )}
           </div>
         )}
       </main>
 
-      <footer className="mx-auto flex w-full max-w-xl flex-col gap-3 px-6 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-        {screen === 'início' && (
-          <Button className={KIOSK_BTN} onClick={() => setScreen('busca')}>
-            Iniciar check-in
-          </Button>
-        )}
-        {footer}
-        {screen === 'operador' && (
-          <>
-            <Button className={KIOSK_BTN} onClick={() => navigate('/')}>
-              Ir ao console
-            </Button>
-            <Button className={KIOSK_BTN} variant="secondary" onClick={() => setScreen('início')}>
-              Continuar no totem
-            </Button>
-          </>
-        )}
-        {screen !== 'operador' && screen !== 'fim' && (
-          <button
-            type="button"
-            onClick={() => setScreen('operador')}
-            className="mx-auto min-h-12 px-3 text-[14px] text-muted"
-          >
-            Console
-          </button>
-        )}
-      </footer>
+      {screen !== 'início' && (
+        <footer className="mx-auto flex w-full max-w-xl flex-col gap-3 px-6 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+          {footer}
+        </footer>
+      )}
     </div>
   )
 }
 
 function docsCta(status: DocStatus) {
-  if (status === 'scanning') return 'Lendo…'
-  if (status === 'fail') return 'Tentar de novo'
-  return 'Ler documento'
+  if (status === 'scanning') return 'Simulando…'
+  if (status === 'fail') return 'Repetir demonstração'
+  return 'Simular conferência'
 }
 
 function FlowBody({ title, children }: { title: string; children: ReactNode }) {
@@ -494,8 +774,10 @@ function footerFor(
   screen: Screen,
   actions: {
     searching: boolean
+    completing: boolean
     docStatus: DocStatus
     accepted: boolean
+    isCheckout: boolean
     onBack: () => void
     onSearch: () => void
     onConfirm: () => void
@@ -503,13 +785,15 @@ function footerFor(
     onScan: () => void
     onFinish: () => void
     onRejectTerms: () => void
+    onContinueExtrato: () => void
+    onFinishCheckout: () => void
   },
 ) {
   if (screen === 'busca') {
     return (
       <>
-        <Button className={KIOSK_BTN} disabled={actions.searching} onClick={actions.onSearch}>
-          {actions.searching ? 'Buscando reserva…' : 'Buscar'}
+        <Button size="kiosk" className={KIOSK_BTN} disabled={actions.searching} onClick={actions.onSearch}>
+          {actions.searching ? 'Buscando…' : 'Buscar'}
         </Button>
         <BackButton onClick={actions.onBack} />
       </>
@@ -519,7 +803,7 @@ function footerFor(
     return (
       <>
         {screen === 'dados' && (
-          <Button className={KIOSK_BTN} onClick={actions.onConfirm}>
+          <Button size="kiosk" className={KIOSK_BTN} onClick={actions.onConfirm}>
             Está correto
           </Button>
         )}
@@ -531,11 +815,11 @@ function footerFor(
     return (
       <>
         {actions.docStatus === 'ok' ? (
-          <Button className={KIOSK_BTN} onClick={actions.onContinueDocs}>
+          <Button size="kiosk" className={KIOSK_BTN} onClick={actions.onContinueDocs}>
             Continuar
           </Button>
         ) : (
-          <Button className={KIOSK_BTN} disabled={actions.docStatus === 'scanning'} onClick={actions.onScan}>
+          <Button size="kiosk" className={KIOSK_BTN} disabled={actions.docStatus === 'scanning'} onClick={actions.onScan}>
             {docsCta(actions.docStatus)}
           </Button>
         )}
@@ -546,12 +830,42 @@ function footerFor(
   if (screen === 'termos') {
     return (
       <>
-        <Button className={KIOSK_BTN} disabled={!actions.accepted} onClick={actions.onFinish}>
-          Aceitar e finalizar
+        <Button
+          size="kiosk"
+          className={KIOSK_BTN}
+          disabled={!actions.accepted || actions.completing}
+          onClick={actions.onFinish}
+        >
+          {actions.completing ? 'Finalizando…' : 'Aceitar e finalizar'}
         </Button>
         <button type="button" onClick={actions.onRejectTerms} className="min-h-14 text-[16px] font-medium text-muted">
           Não aceito
         </button>
+        <BackButton onClick={actions.onBack} />
+      </>
+    )
+  }
+  if (screen === 'extrato') {
+    return (
+      <>
+        <Button size="kiosk" className={KIOSK_BTN} onClick={actions.onContinueExtrato}>
+          Ir para pagamento
+        </Button>
+        <BackButton onClick={actions.onBack} />
+      </>
+    )
+  }
+  if (screen === 'pagamento') {
+    return (
+      <>
+        <Button
+          size="kiosk"
+          className={KIOSK_BTN}
+          disabled={actions.completing}
+          onClick={actions.onFinishCheckout}
+        >
+          {actions.completing ? 'Encerrando conta…' : 'Registrar forma e encerrar'}
+        </Button>
         <BackButton onClick={actions.onBack} />
       </>
     )

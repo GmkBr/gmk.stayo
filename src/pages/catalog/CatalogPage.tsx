@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
-import { useApp } from '../../context/AppContext.tsx'
+import { useApp } from '../../app/useApp.ts'
 import { PageHeader } from '../../components/ui/PageHeader.tsx'
 import { Card } from '../../components/ui/Card.tsx'
 import { Tabs } from '../../components/ui/Tabs.tsx'
@@ -11,7 +11,7 @@ import { Input } from '../../components/ui/Input.tsx'
 import { Select } from '../../components/ui/Select.tsx'
 import { EmptyState } from '../../components/ui/EmptyState.tsx'
 import { formatBRLExact } from '../../utils/format.ts'
-import type { CatalogCategory, CatalogContext, CatalogItem } from '../../types/index.ts'
+import type { CatalogCategory, CatalogContext, CatalogItem } from '../../modules/catalog/model.ts'
 
 type TabId = 'itens' | 'servicos' | 'areas'
 
@@ -22,6 +22,7 @@ export function CatalogPage() {
     hotelCatalogItems,
     hotelServices,
     hotelAreas,
+    hotelSpaces,
     toggleService,
     addCatalogCategory,
     updateCatalogCategory,
@@ -30,6 +31,11 @@ export function CatalogPage() {
     addArea,
     updateArea,
   } = useApp()
+
+  const catalogAreaSpaces = useMemo(
+    () => hotelSpaces.filter((space) => space.type === 'area'),
+    [hotelSpaces],
+  )
 
   const [tab, setTab] = useState<TabId>('itens')
   const [itemModal, setItemModal] = useState(false)
@@ -49,7 +55,7 @@ export function CatalogPage() {
   const [categoryDraft, setCategoryDraft] = useState({
     name: '',
     context: 'room' as CatalogContext,
-    areaId: hotelAreas[0]?.id ?? '',
+    areaId: catalogAreaSpaces[0]?.id ?? '',
     sortOrder: '1',
   })
 
@@ -79,7 +85,7 @@ export function CatalogPage() {
     setItemModal(true)
   }
 
-  function saveItem() {
+  async function saveItem() {
     if (!itemDraft.name.trim() || !itemDraft.categoryId) return
     const payload = {
       hotelId: hotel.id,
@@ -89,8 +95,8 @@ export function CatalogPage() {
       price: Number(itemDraft.price) || 0,
       available: itemDraft.available,
     }
-    if (editingItem) updateCatalogItem(editingItem.id, payload)
-    else addCatalogItem(payload)
+    if (editingItem) await updateCatalogItem(editingItem.id, payload)
+    else await addCatalogItem(payload)
     setItemModal(false)
   }
 
@@ -99,13 +105,13 @@ export function CatalogPage() {
     setCategoryDraft({
       name: '',
       context: tab === 'itens' ? 'room' : 'area',
-      areaId: hotelAreas[0]?.id ?? '',
+      areaId: catalogAreaSpaces[0]?.id ?? '',
       sortOrder: String(hotelCatalogCategories.length + 1),
     })
     setCategoryModal(true)
   }
 
-  function saveCategory() {
+  async function saveCategory() {
     if (!categoryDraft.name.trim()) return
     const payload = {
       hotelId: hotel.id,
@@ -114,14 +120,14 @@ export function CatalogPage() {
       areaIds: categoryDraft.context === 'area' ? [categoryDraft.areaId] : undefined,
       sortOrder: Number(categoryDraft.sortOrder) || 1,
     }
-    if (editingCategory) updateCatalogCategory(editingCategory.id, payload)
-    else addCatalogCategory(payload)
+    if (editingCategory) await updateCatalogCategory(editingCategory.id, payload)
+    else await addCatalogCategory(payload)
     setCategoryModal(false)
   }
 
-  function saveArea() {
+  async function saveArea() {
     if (!areaDraft.name.trim()) return
-    addArea({ hotelId: hotel.id, name: areaDraft.name.trim(), active: areaDraft.active })
+    await addArea({ hotelId: hotel.id, name: areaDraft.name.trim(), active: areaDraft.active })
     setAreaModal(false)
     setAreaDraft({ name: '', active: true })
   }
@@ -224,7 +230,7 @@ export function CatalogPage() {
                   <Button
                     size="sm"
                     variant={service.active ? 'secondary' : 'outline'}
-                    onClick={() => toggleService(service.id)}
+                    onClick={() => void toggleService(service.id)}
                   >
                     {service.active ? 'Ativo' : 'Inativo'}
                   </Button>
@@ -270,7 +276,7 @@ export function CatalogPage() {
             <Button variant="ghost" onClick={() => setItemModal(false)}>
               Cancelar
             </Button>
-            <Button onClick={saveItem}>Salvar</Button>
+            <Button onClick={() => void saveItem()}>Salvar</Button>
           </>
         }
       >
@@ -315,7 +321,7 @@ export function CatalogPage() {
             <Button variant="ghost" onClick={() => setCategoryModal(false)}>
               Cancelar
             </Button>
-            <Button onClick={saveCategory}>Salvar</Button>
+            <Button onClick={() => void saveCategory()}>Salvar</Button>
           </>
         }
       >
@@ -340,7 +346,7 @@ export function CatalogPage() {
               label="Área"
               value={categoryDraft.areaId}
               onChange={(e) => setCategoryDraft((p) => ({ ...p, areaId: e.target.value }))}
-              options={hotelAreas.map((area) => ({ value: area.id, label: area.name }))}
+              options={catalogAreaSpaces.map((area) => ({ value: area.id, label: area.name }))}
             />
           )}
         </div>
@@ -355,7 +361,7 @@ export function CatalogPage() {
             <Button variant="ghost" onClick={() => setAreaModal(false)}>
               Cancelar
             </Button>
-            <Button onClick={saveArea}>Salvar</Button>
+            <Button onClick={() => void saveArea()}>Salvar</Button>
           </>
         }
       >

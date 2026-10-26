@@ -1,4 +1,4 @@
-import type { ActivityKind } from '../../types/index.ts'
+import type { ActivityKind } from '../../modules/activity/model.ts'
 import { TimelineItem } from './Timeline.tsx'
 
 const KIND_DOT: Record<ActivityKind, string> = {
@@ -8,6 +8,8 @@ const KIND_DOT: Record<ActivityKind, string> = {
   request: 'Solicitação',
   reservation: 'Reserva',
   maintenance: 'Manutenção',
+  order: 'Pedido',
+  other: 'Atividade',
 }
 
 export function ActivityItem({

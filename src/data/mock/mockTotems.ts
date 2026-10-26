@@ -1,10 +1,18 @@
-import type { Totem } from '../../types/index.ts'
+import type { Totem } from '../../modules/devices/model.ts'
 
 export const mockTotems: Totem[] = [
   {
+    id: 'tm-rec',
+    hotelId: 'aurora',
+    loginId: 'recepcao-aurora',
+    name: 'Recepção',
+    kind: 'reception',
+    active: true,
+  },
+  {
     id: 'tm-q203',
     hotelId: 'aurora',
-    code: 'Q203-AUR',
+    loginId: 'q203-aurora',
     name: 'Quarto 203',
     kind: 'room',
     roomNumber: '203',
@@ -13,7 +21,7 @@ export const mockTotems: Totem[] = [
   {
     id: 'tm-q308',
     hotelId: 'aurora',
-    code: 'Q308-AUR',
+    loginId: 'q308-aurora',
     name: 'Quarto 308',
     kind: 'room',
     roomNumber: '308',
@@ -22,7 +30,7 @@ export const mockTotems: Totem[] = [
   {
     id: 'tm-rst',
     hotelId: 'aurora',
-    code: 'RST-AUR',
+    loginId: 'restaurante-aurora',
     name: 'Restaurante',
     kind: 'area',
     areaId: 'ar-rst',
@@ -31,7 +39,7 @@ export const mockTotems: Totem[] = [
   {
     id: 'tm-spa',
     hotelId: 'aurora',
-    code: 'SPA-AUR',
+    loginId: 'spa-aurora',
     name: 'Spa',
     kind: 'area',
     areaId: 'ar-spa',
@@ -40,7 +48,7 @@ export const mockTotems: Totem[] = [
   {
     id: 'tm-q104',
     hotelId: 'central',
-    code: 'Q104-CEN',
+    loginId: 'q104-central',
     name: 'Quarto 104',
     kind: 'room',
     roomNumber: '104',

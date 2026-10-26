@@ -1,8 +1,11 @@
-import type { Hotel, Reservation } from '../../types/index.ts'
+import type { Hotel } from '../../modules/hotels/model.ts'
+import type { Reservation } from '../../modules/reservations/model.ts'
+import { resolveHotelAssetUrl } from '../../lib/hotelAssets.ts'
+import { termsLinesFromText } from '../../components/hotels/hotelFormShared.ts'
 import { formatLongDate } from '../../utils/format.ts'
 
-/** Data em que o mock da operação está congelado. */
-export const MOCK_TODAY = '2026-08-14'
+/** Data operacional do dia (check-in). */
+export const MOCK_TODAY = new Date().toISOString().slice(0, 10)
 
 export const FLOW_STEPS = [
   { id: 'busca', label: 'Reserva' },
@@ -34,12 +37,17 @@ export function reservationMatchesQuery(reservation: Reservation, query: string)
   const q = foldText(query)
   if (!q) return false
   const name = foldText(reservation.guestName)
+  const code = foldText(reservation.code ?? '')
   const compactId = foldText(reservation.id).replace(/\s/g, '')
   const compactQuery = q.replace(/\s/g, '')
-  if (name.includes(q) || compactId.includes(compactQuery)) return true
+  if (name.includes(q) || code.includes(compactQuery)) return true
+  if (compactId.includes(compactQuery)) return true
   const queryDigits = digits(query)
   const idDigits = digits(reservation.id)
-  return queryDigits.length >= 4 && idDigits.endsWith(queryDigits)
+  if (queryDigits.length >= 4 && idDigits.endsWith(queryDigits)) return true
+  const cpfDigits = reservation.guestCpf?.replace(/\D/g, '') ?? ''
+  if (queryDigits.length >= 4 && cpfDigits.length >= 4 && cpfDigits.includes(queryDigits)) return true
+  return false
 }
 
 export function blockReason(reservation: Reservation, today = MOCK_TODAY): string | null {
@@ -102,10 +110,27 @@ export function wingCopy(category: string, floor: number) {
   return `pela ala do andar ${floor}`
 }
 
-export function termsFor(hotel: Hotel) {
+export type TermsDisplay = {
+  lines: string[]
+  pdfUrl: string | null
+}
+
+function defaultTermsLines(hotel: Hotel) {
   const lines = ['Check-out até 12h.', 'Silêncio após 22h nas áreas comuns.', 'O cartão do quarto desativa após o check-out.']
-  if (hotel.id === 'aurora') lines.splice(1, 0, 'Animais apenas nos chalés.')
+  if (hotel.slug === 'aurora' || hotel.id.includes('11111111')) lines.splice(1, 0, 'Animais apenas nos chalés.')
   return lines
+}
+
+export function termsDisplayFor(hotel: Hotel): TermsDisplay {
+  const pdfUrl = resolveHotelAssetUrl(hotel.termsPath)
+  const custom = termsLinesFromText(hotel.termsText)
+  if (custom.length > 0) return { lines: custom, pdfUrl }
+  if (pdfUrl) return { lines: [], pdfUrl }
+  return { lines: defaultTermsLines(hotel), pdfUrl: null }
+}
+
+export function termsFor(hotel: Hotel) {
+  return termsDisplayFor(hotel).lines
 }
 
 export function clockLabel(date = new Date()) {

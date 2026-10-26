@@ -1,4 +1,4 @@
-import type { HousekeepingTask } from '../../types/index.ts'
+import type { HousekeepingTask } from '../../types/legacy.ts'
 
 export const mockHousekeeping: HousekeepingTask[] = [
   { id: 'hk-1', hotelId: 'aurora', roomId: 'aurora-203', roomNumber: '203', reason: 'checkout', priority: 'high', assignee: 'Ana', status: 'waiting' },

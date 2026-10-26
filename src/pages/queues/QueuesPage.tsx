@@ -1,13 +1,14 @@
-import { useMemo, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useApp } from '../../context/AppContext.tsx'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { useApp } from '../../app/useApp.ts'
 import { formatShortDate } from '../../utils/format.ts'
 import { PageHeader } from '../../components/ui/PageHeader.tsx'
 import { Card } from '../../components/ui/Card.tsx'
 import { SectionHeader } from '../../components/ui/SectionHeader.tsx'
 import { Badge } from '../../components/ui/Badge.tsx'
 import { EmptyState } from '../../components/ui/EmptyState.tsx'
-import type { Order, OrderStatus } from '../../types/index.ts'
+import type { Order, OrderStatus } from '../../modules/orders/model.ts'
+// Order return type used by async status updates
 import { formatBRLExact } from '../../utils/format.ts'
 import { Button } from '../../components/ui/Button.tsx'
 
@@ -24,8 +25,18 @@ const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
 }
 
 export function QueuesPage() {
-  const { hotelReservations, hotelOrders, updateOrderStatus } = useApp()
+  const { hotelReservations, hotelOrders, updateOrderStatus, queueSummary, bootstrapping, bootstrapError } = useApp()
   const navigate = useNavigate()
+  const location = useLocation()
+  const [welcomeHotel, setWelcomeHotel] = useState<string | null>(() => {
+    const state = location.state as { welcomeHotel?: string } | null
+    return state?.welcomeHotel?.trim() || null
+  })
+
+  useEffect(() => {
+    if (!welcomeHotel) return
+    window.history.replaceState({}, document.title)
+  }, [welcomeHotel])
 
   const waiting = useMemo(
     () => hotelReservations.filter((item) => item.status === 'arriving_today'),
@@ -46,10 +57,31 @@ export function QueuesPage() {
         subtitle="O que chegou pelo totem de recepção e o que os totens de quarto e área pediram."
       />
 
+      {welcomeHotel && (
+        <div
+          role="status"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-success/20 bg-success-soft px-4 py-3"
+        >
+          <p className="text-[13px] text-success">
+            <span className="font-semibold">{welcomeHotel}</span> criado. Você já está no console deste hotel.
+          </p>
+          <Button variant="ghost" size="sm" onClick={() => setWelcomeHotel(null)}>
+            Fechar
+          </Button>
+        </div>
+      )}
+
+      {bootstrapError && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+          {bootstrapError}
+        </p>
+      )}
+      {bootstrapping && <p className="text-[13px] text-muted">Sincronizando com a API…</p>}
+
       <section className="grid gap-3 sm:grid-cols-3">
-        <Stat label="Aguardando check-in" value={waiting.length} />
-        <Stat label="Check-ins feitos" value={checkedIn.length} />
-        <Stat label="Pedidos abertos" value={openOrders.length} />
+        <Stat label="Aguardando check-in" value={queueSummary?.awaitingCheckin ?? waiting.length} />
+        <Stat label="Check-ins feitos" value={queueSummary?.checkinsDone ?? checkedIn.length} />
+        <Stat label="Pedidos abertos" value={queueSummary?.openOrders ?? openOrders.length} />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-2">
@@ -142,7 +174,7 @@ function OrderRow({
   onStatusChange,
 }: {
   order: Order
-  onStatusChange: (id: string, status: OrderStatus) => void
+  onStatusChange: (id: string, status: OrderStatus) => void | Promise<Order>
 }) {
   const tone = ORDER_TONE[order.status]
   const next = NEXT_STATUS[order.status]
@@ -160,12 +192,12 @@ function OrderRow({
       <div className="flex shrink-0 items-center gap-2">
         <Badge tone={tone.tone}>{tone.label}</Badge>
         {next && (
-          <Button size="sm" variant="secondary" onClick={() => onStatusChange(order.id, next)}>
+          <Button size="sm" variant="secondary" onClick={() => void onStatusChange(order.id, next)}>
             {ORDER_TONE[next].label}
           </Button>
         )}
         {order.status !== 'cancelled' && order.status !== 'delivered' && (
-          <Button size="sm" variant="ghost" onClick={() => onStatusChange(order.id, 'cancelled')}>
+          <Button size="sm" variant="ghost" onClick={() => void onStatusChange(order.id, 'cancelled')}>
             Cancelar
           </Button>
         )}

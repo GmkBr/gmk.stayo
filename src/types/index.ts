@@ -1,273 +1,46 @@
-export type RoomStatus =
-  | 'available'
-  | 'occupied'
-  | 'dirty'
-  | 'cleaning'
-  | 'clean'
-  | 'maintenance'
-  | 'blocked'
-
-export type ReservationStatus =
-  | 'pending'
-  | 'confirmed'
-  | 'arriving_today'
-  | 'checked_in'
-  | 'checked_out'
-  | 'cancelled'
-
-export type GuestStatus = 'staying' | 'arriving' | 'departed' | 'vip'
-
-export type MaintenanceStatus = 'open' | 'in_progress' | 'resolved'
-export type MaintenancePriority = 'low' | 'medium' | 'high'
-
-export type HousekeepingStatus = 'waiting' | 'in_progress' | 'done'
-export type HousekeepingPriority = 'low' | 'medium' | 'high'
-export type HousekeepingReason = 'checkout' | 'stayover' | 'deep' | 'blocked'
-
-export type PaymentMethod = 'credit' | 'pix' | 'debit' | 'cash' | 'invoice'
-
-export type Period = 'today' | '7d' | '30d'
-
-export type ActivityKind =
-  | 'checkin'
-  | 'checkout'
-  | 'cleaning'
-  | 'request'
-  | 'reservation'
-  | 'maintenance'
-
-export type Hotel = {
-  id: string
-  name: string
-  city: string
-  state: string
-  roomCount: number
-  occupancy: number
-  occupancyDelta: number
-  revenue: number
-  revenueDelta: number
-  checkInsToday: number
-  checkOutsToday: number
-  checkInsDelta: number
-  checkOutsDelta: number
-  roomsToClean: number
-  inMaintenance: number
-  requests: number
-  occupancySeries: Record<Period, OccupancyPoint[]>
-  brand: HotelBrand
-}
-
-export type HotelBrand = {
-  primaryColor: string
-  secondaryColor: string
-  accentColor: string
-  hotelName: string
-  coverTone: string
-}
-
-export type OccupancyPoint = {
-  label: string
-  value: number
-}
-
-export type Room = {
-  id: string
-  hotelId: string
-  number: string
-  floor: number
-  category: string
-  capacity: number
-  status: RoomStatus
-  guestName?: string
-  guestId?: string
-  checkIn?: string
-  checkOut?: string
-  lastCleaned?: string
-  nextReservation?: string
-  rate: number
-}
-
-export type Guest = {
-  id: string
-  hotelId: string
-  name: string
-  email: string
-  phone: string
-  document: string
-  nationality: string
-  status: GuestStatus
-  lastStay?: string
-  stays: number
-  preferences: string[]
-  notes: string
-  vip?: boolean
-}
-
-export type StayRecord = {
-  id: string
-  guestId: string
-  roomNumber: string
-  checkIn: string
-  checkOut: string
-  total: number
-}
-
-export type ConsumptionItem = {
-  id: string
-  guestId: string
-  label: string
-  date: string
-  amount: number
-}
-
-export type GuestRequest = {
-  id: string
-  guestId: string
-  label: string
-  date: string
-  status: string
-}
-
-export type Reservation = {
-  id: string
-  hotelId: string
-  guestId: string
-  guestName: string
-  guestEmail: string
-  guestPhone: string
-  roomId: string
-  roomNumber: string
-  category: string
-  checkIn: string
-  checkOut: string
-  guests: number
-  status: ReservationStatus
-  total: number
-  paymentMethod: PaymentMethod
-  notes: string
-  history: { at: string; text: string }[]
-}
-
-export type HousekeepingTask = {
-  id: string
-  hotelId: string
-  roomId: string
-  roomNumber: string
-  reason: HousekeepingReason
-  priority: HousekeepingPriority
-  assignee: string
-  status: HousekeepingStatus
-}
-
-export type MaintenanceRequest = {
-  id: string
-  hotelId: string
-  code: string
-  title: string
-  roomNumber: string
-  priority: MaintenancePriority
-  status: MaintenanceStatus
-  openedAt: string
-  notes: string
-}
-
-export type Service = {
-  id: string
-  hotelId: string
-  name: string
-  description: string
-  price: number
-  active: boolean
-  tone: string
-  icon: 'tray' | 'spa' | 'clock' | 'car' | 'map' | 'wine' | 'bike' | 'key'
-}
-
-export type Activity = {
-  id: string
-  hotelId: string
-  time: string
-  title: string
-  detail?: string
-  kind: ActivityKind
-}
-
-export type OrderStatus = 'open' | 'preparing' | 'delivered' | 'cancelled'
-export type OrderSource = 'room' | 'area'
-
-export type OrderLine = {
-  id: string
-  name: string
-  qty: number
-  price: number
-}
-
-export type Order = {
-  id: string
-  hotelId: string
-  source: OrderSource
-  location: string
-  guestName: string
-  items: string
-  lines: OrderLine[]
-  total: number
-  status: OrderStatus
-  time: string
-  totemId?: string
-  notes?: string
-}
-
-export type TotemKind = 'room' | 'area'
-
-export type Totem = {
-  id: string
-  hotelId: string
-  code: string
-  name: string
-  kind: TotemKind
-  roomNumber?: string
-  areaId?: string
-  active: boolean
-}
-
-export type HotelArea = {
-  id: string
-  hotelId: string
-  name: string
-  active: boolean
-}
-
-export type CatalogContext = 'room' | 'area' | 'both'
-
-export type CatalogCategory = {
-  id: string
-  hotelId: string
-  name: string
-  context: CatalogContext
-  areaIds?: string[]
-  sortOrder: number
-}
-
-export type CatalogItem = {
-  id: string
-  hotelId: string
-  categoryId: string
-  name: string
-  description: string
-  price: number
-  available: boolean
-}
-
-export type AppNotification = {
-  id: string
-  hotelId: string
-  title: string
-  detail: string
-  time: string
-  unread: boolean
-}
-
-export type CurrentUser = {
-  name: string
-  role: string
-  initials: string
-}
+// Compatibility entry point. New code imports the owning module directly.
+export type { ReservationStatus } from '../modules/reservations/model.ts'
+export type { RoomStatus } from '../modules/spaces/model.ts'
+export type { PaymentMethod } from '../shared/model.ts'
+export type { CheckoutChargeType } from '../modules/stays/model.ts'
+export type { CheckoutCharge } from '../modules/stays/model.ts'
+export type { ActivityKind } from '../modules/activity/model.ts'
+export type { HotelBrand } from '../modules/hotels/model.ts'
+export type { Hotel } from '../modules/hotels/model.ts'
+export type { Room } from '../modules/spaces/model.ts'
+export type { Guest } from './legacy.ts'
+export type { Reservation } from '../modules/reservations/model.ts'
+export type { CheckoutStatement } from '../modules/journeys/model.ts'
+export type { StayStatus } from '../modules/stays/model.ts'
+export type { Stay } from '../modules/stays/model.ts'
+export type { StayAccount } from '../modules/stays/model.ts'
+export type { Service } from '../modules/catalog/model.ts'
+export type { Activity } from '../modules/activity/model.ts'
+export type { OrderStatus } from '../modules/orders/model.ts'
+export type { OrderSource } from '../modules/orders/model.ts'
+export type { OrderLine } from '../modules/orders/model.ts'
+export type { Order } from '../modules/orders/model.ts'
+export type { SpaceType } from '../modules/spaces/model.ts'
+export type { Space } from '../modules/spaces/model.ts'
+export type { TotemKind } from '../modules/devices/model.ts'
+export type { AccountType } from '../modules/identity/model.ts'
+export type { TotemProfile } from '../modules/devices/model.ts'
+export type { Totem } from '../modules/devices/model.ts'
+export type { HotelArea } from '../modules/catalog/model.ts'
+export type { CatalogContext } from '../modules/catalog/model.ts'
+export type { CatalogCategory } from '../modules/catalog/model.ts'
+export type { CatalogItem } from '../modules/catalog/model.ts'
+export type { CurrentUser } from '../modules/identity/model.ts'
+export type { HousekeepingStatus } from './legacy.ts'
+export type { HousekeepingPriority } from './legacy.ts'
+export type { HousekeepingReason } from './legacy.ts'
+export type { HousekeepingTask } from './legacy.ts'
+export type { MaintenanceStatus } from './legacy.ts'
+export type { MaintenancePriority } from './legacy.ts'
+export type { MaintenanceRequest } from './legacy.ts'
+export type { AppNotification } from './legacy.ts'
+export type { Period } from './legacy.ts'
+export type { OccupancyPoint } from './legacy.ts'
+export type { StayRecord } from './legacy.ts'
+export type { ConsumptionItem } from './legacy.ts'
+export type { GuestRequest } from './legacy.ts'
